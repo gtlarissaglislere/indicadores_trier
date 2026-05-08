@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CH-22 · Produtos — Implantação & Ciclo de Vida — Connect Hub</title>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+<style>
+  :root {
+    --bg: #f0f2f5; --panel: #ffffff; --panel2: #f8fafc;
+    --text: #374151; --text-muted: #6b7280; --title: #111827;
+    --accent: #059669; --accent-bg: #05966914;
+    --ok: #16a34a; --ok-bg: rgba(22,163,74,0.08);
+    --warn: #d97706; --warn-bg: rgba(217,119,6,0.08);
+    --danger: #dc2626; --danger-bg: rgba(220,38,38,0.08);
+    --border: #e5e7eb; --shadow: 0 1px 3px rgba(0,0,0,0.06);
+    --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,-apple-system,sans-serif; line-height:1.5; }
+
+  /* ── Header ── */
+  .ch-header {
+    background:linear-gradient(135deg,#065f46 0%,#059669 100%);
+    color:#fff; padding:20px 30px; display:flex; justify-content:space-between; align-items:center;
+    position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,.15);
+  }
+  .ch-header h1 { font-size:1.3em; font-weight:600; display:flex; align-items:center; gap:10px; }
+  .ch-header .code { opacity:.7; font-weight:400; font-size:.85em; }
+  .ch-header .hdr-badges { display:flex; gap:8px; align-items:center; }
+  .ch-header .hdr-badge { background:rgba(255,255,255,.2); padding:4px 14px; border-radius:20px; font-size:.8em;
+    display:inline-flex; align-items:center; gap:5px; }
+
+  /* ── Container ── */
+  .ch-container { max-width:2000px; margin:0 auto; padding:20px; }
+
+  /* ── Badge construção ── */
+  .ch-fictional {
+    display:inline-flex; align-items:center; gap:6px; padding:6px 16px; border-radius:8px;
+    background:var(--warn-bg); color:var(--warn); font-size:.82em; font-weight:600; margin-bottom:16px;
+    border:1px solid rgba(217,119,6,.3);
+  }
+
+  /* ── KPIs ── */
+  .ch-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:24px; }
+  .ch-kpi {
+    background:var(--panel); border-radius:var(--radius); padding:16px 20px;
+    box-shadow:var(--shadow); border-left:4px solid var(--accent);
+    transition:transform .15s, box-shadow .15s; position:relative;
+  }
+  .ch-kpi:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.1); }
+  .ch-kpi .kpi-label { font-size:.72em; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; }
+  .ch-kpi .kpi-value { font-size:1.8em; font-weight:700; color:var(--title); margin:4px 0; }
+  .ch-kpi .kpi-meta { font-size:.72em; color:var(--text-muted); display:flex; align-items:center; gap:4px; }
+  .ch-kpi.ok { border-left-color:var(--ok); }
+  .ch-kpi.warn { border-left-color:var(--warn); }
+  .ch-kpi.danger { border-left-color:var(--danger); }
+
+  .meta-badge {
+    display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:10px;
+    font-size:.72em; font-weight:600;
+  }
+  .meta-badge.badge-ok { background:var(--ok-bg); color:var(--ok); }
+  .meta-badge.badge-warn { background:var(--warn-bg); color:var(--warn); }
+  .meta-badge.badge-danger { background:var(--danger-bg); color:var(--danger); }
+
+  /* ── Charts grid ── */
+  .ch-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-bottom:24px; }
+  .ch-card {
+    background:var(--panel); border-radius:var(--radius); padding:20px;
+    box-shadow:var(--shadow); position:relative;
+  }
+  .ch-card h3 {
+    font-size:.95em; color:var(--title); margin-bottom:12px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .ch-card h3 i { color:var(--accent); }
+  .ch-card .ch-card-actions {
+    position:absolute; top:14px; right:14px; display:flex; gap:6px;
+  }
+  .ch-chart { width:100%; min-height:350px; }
+  .ch-full { grid-column:1/-1; }
+
+  /* ── Help button ── */
+  .ch-help-btn {
+    width:22px; height:22px; border-radius:50%; border:1.5px solid var(--border);
+    background:var(--panel); color:var(--text-muted); font-size:.7em; font-weight:700;
+    cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    transition:all .15s; flex-shrink:0;
+  }
+  .ch-help-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  /* ── Insight button (per chart) ── */
+  .ch-insight-btn {
+    width:28px; height:28px; border-radius:50%; border:1.5px solid var(--border);
+    background:var(--panel); color:var(--warn); font-size:.9em;
+    cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    transition:all .15s; position:relative;
+  }
+  .ch-insight-btn:hover { background:var(--warn-bg); border-color:var(--warn); }
+  .ch-insight-btn.has-critical { color:var(--danger); }
+  .ch-insight-btn.has-critical:hover { background:var(--danger-bg); border-color:var(--danger); }
+  .ch-insight-btn .badge-count {
+    position:absolute; top:-4px; right:-4px; width:16px; height:16px; border-radius:50%;
+    background:var(--danger); color:#fff; font-size:.6em; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ch-insight-btn:disabled { opacity:.3; cursor:default; }
+
+  /* ── Modal ── */
+  .ch-modal-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.4);
+    z-index:1000; justify-content:center; align-items:center;
+  }
+  .ch-modal-overlay.active { display:flex; }
+  .ch-modal {
+    background:var(--panel); border-radius:var(--radius); max-width:600px; width:90%;
+    max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2);
+  }
+  .ch-modal-head {
+    padding:16px 20px; border-bottom:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .ch-modal-head h4 { font-size:1em; color:var(--title); display:flex; align-items:center; gap:8px; }
+  .ch-modal-close {
+    width:28px; height:28px; border-radius:50%; border:none; background:var(--bg);
+    color:var(--text-muted); font-size:1.1em; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .ch-modal-close:hover { background:var(--danger-bg); color:var(--danger); }
+  .ch-modal-body { padding:20px; }
+  .ch-modal-body .help-section { margin-bottom:14px; }
+  .ch-modal-body .help-section h5 {
+    font-size:.8em; text-transform:uppercase; letter-spacing:.5px; color:var(--accent);
+    margin-bottom:6px; display:flex; align-items:center; gap:6px;
+  }
+  .ch-modal-body .help-section p { font-size:.88em; color:var(--text); line-height:1.6; }
+
+  /* ── Insights panel (page-level, collapsible) ── */
+  .ch-insights-panel { margin-bottom:24px; }
+  .ch-insights-toggle {
+    display:flex; align-items:center; gap:10px; padding:12px 18px;
+    background:var(--panel); border-radius:var(--radius); cursor:pointer;
+    box-shadow:var(--shadow); border:none; width:100%; text-align:left;
+    font-family:inherit; font-size:.88em; color:var(--title);
+    transition:background .15s;
+  }
+  .ch-insights-toggle:hover { background:var(--panel2); }
+  .ch-insights-toggle .toggle-icon { transition:transform .2s; font-size:1.1em; }
+  .ch-insights-toggle .toggle-icon.open { transform:rotate(180deg); }
+  .ch-insights-summary { display:flex; gap:10px; margin-left:auto; }
+  .ch-insights-summary .sum-badge {
+    padding:2px 10px; border-radius:10px; font-size:.78em; font-weight:600;
+  }
+  .ch-insights-summary .sum-critical { background:var(--danger-bg); color:var(--danger); }
+  .ch-insights-summary .sum-warning { background:var(--warn-bg); color:var(--warn); }
+  .ch-insights-summary .sum-info { background:rgba(37,99,235,.08); color:var(--accent); }
+
+  .ch-insights-list {
+    overflow:hidden; transition:max-height .3s ease; max-height:0;
+    margin-top:8px;
+  }
+  .ch-insights-list.open { max-height:2000px; }
+
+  .ch-insight {
+    display:flex; align-items:flex-start; gap:12px; padding:12px 18px; border-radius:8px;
+    margin-bottom:6px; border-left:4px solid transparent; font-size:.88em;
+  }
+  .ch-insight.critical { background:var(--danger-bg); border-left-color:var(--danger); }
+  .ch-insight.warning { background:var(--warn-bg); border-left-color:var(--warn); }
+  .ch-insight.info { background:rgba(37,99,235,.06); border-left-color:var(--accent); }
+  .ch-insight .ins-icon { font-size:1.2em; margin-top:1px; flex-shrink:0; }
+  .ch-insight .ins-body { flex:1; }
+  .ch-insight .ins-body strong { display:block; font-size:.9em; color:var(--title); }
+  .ch-insight .ins-body p { margin:3px 0 0; color:var(--text); }
+  .ch-insight .ins-action { font-size:.85em; color:var(--accent); font-style:italic; margin-top:4px; }
+
+  /* ── Tables ── */
+  .ch-table { width:100%; border-collapse:collapse; font-size:.82em; }
+  .ch-table th { background:var(--panel2); padding:10px 12px; text-align:left; border-bottom:2px solid var(--border); color:var(--text-muted); font-weight:600; }
+  .ch-table td { padding:8px 12px; border-bottom:1px solid var(--border); }
+  .ch-table tr:hover { background:var(--panel2); }
+
+  /* ── Footer ── */
+  .ch-footer {
+    text-align:center; padding:20px; font-size:.78em; color:var(--text-muted);
+    border-top:1px solid var(--border); margin-top:10px;
+  }
+  .ch-footer a { color:var(--accent); text-decoration:none; }
+
+  /* ── Responsive ── */
+  @media (max-width:1024px) {
+    .ch-grid { grid-template-columns:1fr; }
+    .ch-kpi-grid { grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+  }
+  @media (max-width:640px) {
+    .ch-header { padding:14px 16px; }
+    .ch-header h1 { font-size:1.1em; }
+    .ch-container { padding:12px; }
+    .ch-kpi .kpi-value { font-size:1.4em; }
+  }
+
+  .status-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:.8em; font-weight:600; }
+  .status-badge.ativo { background:#d1fae5; color:#065f46; }
+  .status-badge.beta { background:#dbeafe; color:#1e40af; }
+  .status-badge.descontinuado { background:#fef2f2; color:#991b1b; }
+</style>
+<script>
+window.__CH_HELPS = {"MRR": {"desc": "Monthly Recurring Revenue — receita mensal recorrente.", "look": "Tendência crescente indica saúde do negócio. Quedas = churn.", "rec": "Monitorar churn e investir em retenção se MRR cair.", "solves": "Principal indicador de saúde financeira para SaaS."}, "NPS": {"desc": "Net Promoter Score — mede lealdade e satisfação do cliente (-100 a +100).", "look": ">50 = excelente. 20-50 = bom. <20 = zona de alerta.", "rec": "Contatar detratores e entender motivos de insatisfação.", "solves": "Prediz crescimento futuro e retenção de clientes."}, "Churn Rate": {"desc": "Taxa de cancelamento de clientes no período (%).", "look": "Ideal <5% mensal. Acima disso, há risco para o crescimento.", "rec": "Criar programa de customer success e onboarding.", "solves": "Identifica problemas de retenção antes que afetem a receita."}, "Contratos por Status": {"desc": "Distribuição de contratos por situação (Ativo, Suspenso, Cancelado).", "look": "Alto % de cancelados/suspensos indica necessidade de ação.", "rec": "Investigar motivos de cancelamento e criar plano de retenção.", "solves": "Visão geral da base de clientes e saúde contratual."}};
+window.__CH_DATA = {"insights":[{"id": 51, "dashboard_slug": "produtos-ciclo", "indicator_name": "NPS", "insight_type": "acao", "message": "Produto 'SPED' com NPS -14 — requer acao urgente.", "suggested_action": "Agendar reuniao com clientes de 'SPED' para entender insatisfacao.", "severity": "warning", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}, {"id": 52, "dashboard_slug": "produtos-ciclo", "indicator_name": "Churn Rate", "insight_type": "atencao", "message": "Churn rate em 5.9% — acima da meta (3%).", "suggested_action": "Analisar motivos de cancelamento e criar acoes preventivas.", "severity": "warning", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}, {"id": 53, "dashboard_slug": "produtos-ciclo", "indicator_name": "Churn Rate", "insight_type": "acao", "message": "2 contrato(s) suspenso(s) — risco de churn.", "suggested_action": "Contatar clientes com contratos suspensos para entender situacao.", "severity": "warning", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}, {"id": 50, "dashboard_slug": "produtos-ciclo", "indicator_name": "NPS", "insight_type": "atencao", "message": "NPS em 20 — muito abaixo da meta (50).", "suggested_action": "Investigar detratores. Criar programa de recuperacao de clientes insatisfeitos.", "severity": "critical", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}]};
+</script>
+</head>
+<body>
+<header class="ch-header">
+  <h1><i class="bi bi-box-seam"></i> Produtos — Implantação & Ciclo de Vida <span class="code">CH-22</span></h1>
+  <div class="hdr-badges">
+    <span class="hdr-badge"><i class="bi bi-people"></i> Gestão</span>
+    <span class="hdr-badge"><i class="bi bi-clock"></i> 08/05/2026 09:28</span>
+  </div>
+</header>
+<div class="ch-container">
+<div class="ch-fictional"><i class="bi bi-cone-striped"></i> 🚧 Em Construção · Dados de exemplo</div>
+
+  <!-- Insights -->
+  <div class="ch-insights-panel" id="chInsightsPanel"></div>
+
+  <!-- KPIs -->
+  <div class="ch-kpi-grid" id="kpiGrid"></div>
+
+  <!-- Charts -->
+  <div class="ch-grid">
+    <div class="ch-card" id="cardMRR">
+      <h3><i class="bi bi-currency-dollar"></i> MRR por Produto</h3>
+      <div class="ch-chart" id="chartMRR"></div>
+    </div>
+    <div class="ch-card" id="cardNPS">
+      <h3><i class="bi bi-emoji-smile"></i> NPS por Produto</h3>
+      <div class="ch-chart" id="chartNPS"></div>
+    </div>
+    <div class="ch-card" id="cardContratos">
+      <h3><i class="bi bi-pie-chart"></i> Contratos por Status</h3>
+      <div class="ch-chart" id="chartContratos"></div>
+    </div>
+    <div class="ch-card" id="cardNPSGauge">
+      <h3><i class="bi bi-chat-dots"></i> NPS — Promotores / Neutros / Detratores</h3>
+      <div class="ch-chart" id="chartNPSGauge"></div>
+    </div>
+    <div class="ch-card ch-full" id="cardCatalog">
+      <h3><i class="bi bi-grid-3x3"></i> Catálogo de Produtos</h3>
+      <div id="catalogTable"></div>
+    </div>
+  </div>
+
+</div>
+<footer class="ch-footer">
+  Produtos — Implantação & Ciclo de Vida — Connect Hub · Trier Sistemas
+</footer>
+
+<script>
+const D = {"gerado_em": "08/05/2026 09:28", "metas": {"Cumprimento de Prazo": 85.0, "Churn Rate": 3.0, "NPS": 50.0}, "insights": [{"id": 51, "dashboard_slug": "produtos-ciclo", "indicator_name": "NPS", "insight_type": "acao", "message": "Produto 'SPED' com NPS -14 — requer acao urgente.", "suggested_action": "Agendar reuniao com clientes de 'SPED' para entender insatisfacao.", "severity": "warning", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}, {"id": 52, "dashboard_slug": "produtos-ciclo", "indicator_name": "Churn Rate", "insight_type": "atencao", "message": "Churn rate em 5.9% — acima da meta (3%).", "suggested_action": "Analisar motivos de cancelamento e criar acoes preventivas.", "severity": "warning", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}, {"id": 53, "dashboard_slug": "produtos-ciclo", "indicator_name": "Churn Rate", "insight_type": "acao", "message": "2 contrato(s) suspenso(s) — risco de churn.", "suggested_action": "Contatar clientes com contratos suspensos para entender situacao.", "severity": "warning", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}, {"id": 50, "dashboard_slug": "produtos-ciclo", "indicator_name": "NPS", "insight_type": "atencao", "message": "NPS em 20 — muito abaixo da meta (50).", "suggested_action": "Investigar detratores. Criar programa de recuperacao de clientes insatisfeitos.", "severity": "critical", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}], "catalogo": {"total": 14, "ativos": 12, "beta": 2, "produtos": [{"nome": "BC", "tipo": "SaaS", "lancamento": "2018-03-15", "status": "Ativo", "descricao": "Sistema de gestão para farmácias", "categoria": "ERP"}, {"nome": "SPED", "tipo": "Módulo", "lancamento": "2019-06-01", "status": "Ativo", "descricao": "Módulo fiscal e contábil integrado", "categoria": "Fiscal"}, {"nome": "GCP", "tipo": "SaaS", "lancamento": "2020-01-10", "status": "Ativo", "descricao": "Gestão comercial e precificação", "categoria": "Comercial"}, {"nome": "App Gestor", "tipo": "SaaS", "lancamento": "2021-04-20", "status": "Ativo", "descricao": "Aplicativo mobile de gestão para farmácias", "categoria": "Mobile"}, {"nome": "BI Estratégico", "tipo": "SaaS", "lancamento": "2022-02-01", "status": "Ativo", "descricao": "Business Intelligence para decisões estratégicas", "categoria": "Analytics"}, {"nome": "PIX", "tipo": "Módulo", "lancamento": "2021-11-15", "status": "Ativo", "descricao": "Integração de pagamentos PIX", "categoria": "Financeiro"}, {"nome": "Parcerias iFood", "tipo": "API", "lancamento": "2023-03-01", "status": "Ativo", "descricao": "Integração com marketplace iFood", "categoria": "Marketplace"}, {"nome": "Parcerias Rappi", "tipo": "API", "lancamento": "2023-08-15", "status": "Beta", "descricao": "Integração com marketplace Rappi", "categoria": "Marketplace"}, {"nome": "Connect Hub", "tipo": "Plataforma", "lancamento": "2024-01-10", "status": "Ativo", "descricao": "Portal de indicadores e dashboards", "categoria": "Analytics"}, {"nome": "Coletor Farmarcas", "tipo": "Módulo", "lancamento": "2020-09-01", "status": "Ativo", "descricao": "Coletor de dados rede Farmarcas", "categoria": "Integração"}, {"nome": "Coletor Confarma", "tipo": "Módulo", "lancamento": "2021-01-15", "status": "Ativo", "descricao": "Coletor de dados rede Confarma", "categoria": "Integração"}, {"nome": "SNGPC", "tipo": "Módulo", "lancamento": "2019-03-01", "status": "Ativo", "descricao": "Controle de medicamentos controlados", "categoria": "Regulatório"}, {"nome": "Força de Vendas", "tipo": "SaaS", "lancamento": "2024-06-01", "status": "Beta", "descricao": "App para representantes de vendas", "categoria": "Comercial"}, {"nome": "EAD Treinamentos", "tipo": "Plataforma", "lancamento": "2025-01-15", "status": "Ativo", "descricao": "Plataforma de treinamento online", "categoria": "Educação"}], "is_fictional": true}, "contratos": {"total_contratos": 51, "mrr": 40310.0, "arr": 483720.0, "ativos": 46, "suspensos": 2, "cancelados": 3, "churn_rate": 5.9, "clientes_unicos": 17, "por_produto": {"BC": {"ativos": 14, "cancelados": 2, "mrr": 25360.0}, "SPED": {"ativos": 9, "cancelados": 1, "mrr": 3680.0}, "App Gestor": {"ativos": 6, "cancelados": 0, "mrr": 1440.0}, "GCP": {"ativos": 7, "cancelados": 0, "mrr": 4980.0}, "BI Estratégico": {"ativos": 5, "cancelados": 0, "mrr": 3750.0}, "PIX": {"ativos": 5, "cancelados": 0, "mrr": 1100.0}}, "por_status": {"Ativo": 46, "Suspenso": 2, "Cancelado": 3}, "contratos": [{"cliente": "Farmácia São João", "produto": "BC", "valor_mensal": 890.0, "data_inicio": "2020-03-01", "data_renovacao": "2026-03-01", "status": "Ativo", "plano": "Premium"}, {"cliente": "Farmácia São João", "produto": "SPED", "valor_mensal": 290.0, "data_inicio": "2020-03-01", "data_renovacao": "2026-03-01", "status": "Ativo", "plano": "Standard"}, {"cliente": "Farmácia São João", "produto": "App Gestor", "valor_mensal": 190.0, "data_inicio": "2022-05-01", "data_renovacao": "2026-05-01", "status": "Ativo", "plano": "Standard"}, {"cliente": "Rede Drogal", "produto": "BC", "valor_mensal": 2450.0, "data_inicio": "2019-06-15", "data_renovacao": "2026-06-15", "status": "Ativo", "plano": "Enterprise"}, {"cliente": "Rede Drogal", "produto": "GCP", "valor_mensal": 780.0, "data_inicio": "2020-01-10", "data_renovacao": "2026-01-10", "status": "Ativo", "plano": "Premium"}, {"cliente": "Rede Drogal", "produto": "BI Estratégico", "valor_mensal": 590.0, "data_inicio": "2022-08-01", "data_renovacao": "2026-08-01", "status": "Ativo", "plano": "Premium"}, {"cliente": "Rede Drogal", "produto": "PIX", "valor_mensal": 150.0, "data_inicio": "2022-01-15", "data_renovacao": "2026-01-15", "status": "Ativo", "plano": "Standard"}, {"cliente": "Drogaria Araújo", "produto": "BC", "valor_mensal": 1890.0, "data_inicio": "2019-01-10", "data_renovacao": "2026-01-10", "status": "Ativo", "plano": "Enterprise"}, {"cliente": "Drogaria Araújo", "produto": "SPED", "valor_mensal": 450.0, "data_inicio": "2019-01-10", "data_renovacao": "2026-01-10", "status": "Ativo", "plano": "Premium"}, {"cliente": "Drogaria Araújo", "produto": "App Gestor", "valor_mensal": 190.0, "data_inicio": "2023-02-01", "data_renovacao": "2026-02-01", "status": "Ativo", "plano": "Standard"}, {"cliente": "Drogaria Araújo", "produto": "GCP", "valor_mensal": 580.0, "data_inicio": "2021-03-01", "data_renovacao": "2026-03-01", "status": "Ativo", "plano": "Standard"}, {"cliente": "Farmácia Pague Menos", "produto": "BC", "valor_mensal": 3200.0, "data_inicio": "2018-08-01", "data_renovacao": "2026-08-01", "status": "Ativo", "plano": "Enterprise"}, {"cliente": "Farmácia Pague Menos", "produto": "BI Estratégico", "valor_mensal": 890.0, "data_inicio": "2023-01-01", "data_renovacao": "2026-07-01", "status": "Ativo", "plano": "Enterprise"}, {"cliente": "Farmácia Pague Menos", "produto": "PIX", "valor_mensal": 250.0, "data_inicio": "2022-06-01", "data_renovacao": "2026-06-01", "status": "Ativo", "plano": "Premium"}, {"cliente": "Farmácia Panvel", "produto": "BC", "valor_mensal": 2100.0, "data_inicio": "2019-11-01", "data_renovacao": "2026-11-01", "status": "Ativo", "plano": "Enterprise"}, {"cliente": "Farmácia Panvel", "produto": "SPED", "valor_mensal": 490.0, "data_inicio": "2019-11-01", "data_renovacao": "2026-11-01", "status": "Ativo", "plano": "Premium"}, {"cliente": "Farmácia Panvel", "produto": "GCP", "valor_mensal": 680.0, "data_inicio": "2020-06-01", "data_renovacao": "2026-06-01", "status": "Ativo", "plano": "Premium"}, {"cliente": "Farmácia Panvel", "produto": "App Gestor", "valor_mensal": 290.0, "data_inicio": "2023-06-01", "data_renovacao": "2026-06-01", "status": "Ativo", "plano": "Premium"}, {"cliente": "Drogaria Venancio", "produto": "BC", "valor_mensal": 1650.0, "data_inicio": "2020-02-15", "data_renovacao": "2026-02-15", "status": "Ativo", "plano": "Premium"}, {"cliente": "Drogaria Venancio", "produto": "SPED", "valor_mensal": 350.0, "data_inicio": "2020-02-15", "data_renovacao": "2026-02-15", "status": "Ativo", "plano": "Standard"}, {"cliente": "Drogaria Venancio", "produto": "PIX", "valor_mensal": 150.0, "data_inicio": "2022-03-01", "data_renovacao": "2026-03-01", "status": "Ativo", "plano": "Standard"}, {"cliente": "Farmácia Indiana", "produto": "BC", "valor_mensal": 790.0, "data_inicio": "2021-04-01", "data_renovacao": "2026-04-01", "status": "Ativo", "plano": "Standard"}, {"cliente": "Farmácia Indiana", "produto": "App Gestor", "valor_mensal": 190.0, "data_inicio": "2023-09-01", "data_renovacao": "2026-09-01", "status": "Ativo", "plano": "Standard"}, {"cliente": "Farmácia Nissei", "produto": "BC", "valor_mensal": 2800.0, "data_inicio": "2019-03-20", "data_renovacao": "2026-03-20", "status": "Ativo", "plano": "Enterprise"}, {"cliente": "Farmácia Nissei", "produto": "GCP", "valor_mensal": 890.0, "data_inicio": "2020-07-01", "data_renovacao": "2026-07-01", "status": "Ativo", "plano": "Enterprise"}, {"cliente": "Farmácia Nissei", "produto": "BI Estratégico", "valor_mensal": 690.0, "data_inicio": "2023-03-01", "data_renovacao": "2026-09-01", "status": "Ativo", "plano": "Premium"}, {"cliente": "Farmácia Nissei", "produto": "SPED", "valor_mensal": 490.0, "data_inicio": "2019-03-20", "data_renovacao": "2026-03-20", "status": "Ativo", "plano": "Premium"}, {"cliente": "Rede Droga Raia", "produto": "BC", "valor_mensal": 3500.0, "data_inicio": "2018-05-01", "data_renovacao": "2026-05-01", "status": "Ativo", "plano": "Enterprise"}, {"cliente": "Rede Droga Raia", "produto": "SPED", "valor_mensal": 650.0, "data_inicio": "2018-05-01", "data_renovacao": "2026-05-01", "status": "Ativo", "plano": "Enterprise"}, {"cliente": "Rede Droga Raia", "produto": "GCP", "valor_mensal": 980.0, "data_inicio": "2019-09-01", "data_renovacao": "2026-09-01", "status": "Ativo", "plano": "Enterprise"}, {"cliente": "Rede Droga Raia", "produto": "BI Estratégico", "valor_mensal": 990.0, "data_inicio": "2022-11-01", "data_renovacao": "2026-11-01", "status": "Ativo", "plano": "Enterprise"}, {"cliente": "Rede Droga Raia", "produto": "PIX", "valor_mensal": 350.0, "data_inicio": "2021-12-01", "data_renovacao": "2026-12-01", "status": "Ativo", "plano": "Enterprise"}, {"cliente": "Rede Droga Raia", "produto": "App Gestor", "valor_mensal": 390.0, "data_inicio": "2023-04-01", "data_renovacao": "2026-04-01", "status": "Ativo", "plano": "Premium"}, {"cliente": "Farmácia Preço Popular", "produto": "BC", "valor_mensal": 690.0, "data_inicio": "2022-01-15", "data_renovacao": "2026-01-15", "status": "Ativo", "plano": "Standard"}, {"cliente": "Farmácia Preço Popular", "produto": "SPED", "valor_mensal": 250.0, "data_inicio": "2022-01-15", "data_renovacao": "2026-01-15", "status": "Ativo", "plano": "Standard"}, {"cliente": "Drogaria Catarinense", "produto": "BC", "valor_mensal": 1950.0, "data_inicio": "2019-07-01", "data_renovacao": "2026-07-01", "status": "Ativo", "plano": "Enterprise"}, {"cliente": "Drogaria Catarinense", "produto": "SPED", "valor_mensal": 420.0, "data_inicio": "2019-07-01", "data_renovacao": "2026-07-01", "status": "Ativo", "plano": "Premium"}, {"cliente": "Drogaria Catarinense", "produto": "GCP", "valor_mensal": 580.0, "data_inicio": "2021-01-01", "data_renovacao": "2026-01-01", "status": "Ativo", "plano": "Standard"}, {"cliente": "Rede Farmácias Associadas", "produto": "BC", "valor_mensal": 1200.0, "data_inicio": "2020-10-01", "data_renovacao": "2025-10-01", "status": "Suspenso", "plano": "Premium"}, {"cliente": "Rede Farmácias Associadas", "produto": "SPED", "valor_mensal": 320.0, "data_inicio": "2020-10-01", "data_renovacao": "2025-10-01", "status": "Suspenso", "plano": "Standard"}, {"cliente": "Farmácia Popular Mix", "produto": "BC", "valor_mensal": 850.0, "data_inicio": "2021-06-01", "data_renovacao": "2025-06-01", "status": "Cancelado", "plano": "Standard"}, {"cliente": "Farmácia Popular Mix", "produto": "SPED", "valor_mensal": 290.0, "data_inicio": "2021-06-01", "data_renovacao": "2025-06-01", "status": "Cancelado", "plano": "Standard"}, {"cliente": "Drogaria Extra", "produto": "BC", "valor_mensal": 720.0, "data_inicio": "2022-03-01", "data_renovacao": "2025-09-01", "status": "Cancelado", "plano": "Standard"}, {"cliente": "Farmácia Globo", "produto": "BC", "valor_mensal": 1100.0, "data_inicio": "2020-12-01", "data_renovacao": "2026-12-01", "status": "Ativo", "plano": "Premium"}, {"cliente": "Farmácia Globo", "produto": "GCP", "valor_mensal": 490.0, "data_inicio": "2022-04-01", "data_renovacao": "2026-04-01", "status": "Ativo", "plano": "Standard"}, {"cliente": "Farmácia Globo", "produto": "App Gestor", "valor_mensal": 190.0, "data_inicio": "2024-01-01", "data_renovacao": "2026-01-01", "status": "Ativo", "plano": "Standard"}, {"cliente": "Drogaria Ultra", "produto": "BC", "valor_mensal": 950.0, "data_inicio": "2023-02-01", "data_renovacao": "2026-02-01", "status": "Ativo", "plano": "Standard"}, {"cliente": "Drogaria Ultra", "produto": "SPED", "valor_mensal": 290.0, "data_inicio": "2023-02-01", "data_renovacao": "2026-02-01", "status": "Ativo", "plano": "Standard"}, {"cliente": "Rede Farma Conde", "produto": "BC", "valor_mensal": 1400.0, "data_inicio": "2021-08-01", "data_renovacao": "2026-08-01", "status": "Ativo", "plano": "Premium"}, {"cliente": "Rede Farma Conde", "produto": "BI Estratégico", "valor_mensal": 590.0, "data_inicio": "2023-07-01", "data_renovacao": "2026-07-01", "status": "Ativo", "plano": "Premium"}, {"cliente": "Rede Farma Conde", "produto": "PIX", "valor_mensal": 200.0, "data_inicio": "2022-09-01", "data_renovacao": "2026-09-01", "status": "Ativo", "plano": "Standard"}], "is_fictional": true}, "nps": {"total_respostas": 41, "nps_score": 19.5, "media": 7.9, "promotores": 12, "neutros": 25, "detratores": 4, "por_produto": {"BC": 20.0, "App Gestor": 0.0, "BI Estratégico": 80.0, "GCP": 40.0, "SPED": -14.3, "PIX": 0.0}, "por_categoria": {"Suporte": 6, "Produto": 33, "Implantação": 2}, "respostas": [{"data": "2026-01-10", "cliente": "Farmácia São João", "produto": "BC", "score": 9, "comentario": "Excelente sistema e suporte rápido", "categoria": "Suporte"}, {"data": "2026-01-12", "cliente": "Rede Drogal", "produto": "BC", "score": 8, "comentario": "Bom mas poderia ter mais relatórios", "categoria": "Produto"}, {"data": "2026-01-15", "cliente": "Drogaria Araújo", "produto": "App Gestor", "score": 7, "comentario": "App funciona bem mas trava às vezes", "categoria": "Produto"}, {"data": "2026-01-18", "cliente": "Farmácia Pague Menos", "produto": "BI Estratégico", "score": 10, "comentario": "Dashboards excepcionais", "categoria": "Produto"}, {"data": "2026-01-20", "cliente": "Farmácia Panvel", "produto": "GCP", "score": 8, "comentario": "Precificação ficou muito mais ágil", "categoria": "Produto"}, {"data": "2026-01-22", "cliente": "Drogaria Venancio", "produto": "BC", "score": 6, "comentario": "Implantação demorou mais que o esperado", "categoria": "Implantação"}, {"data": "2026-01-25", "cliente": "Farmácia Indiana", "produto": "BC", "score": 7, "comentario": "Bom custo-benefício", "categoria": "Produto"}, {"data": "2026-01-28", "cliente": "Farmácia Nissei", "produto": "GCP", "score": 9, "comentario": "Ótima ferramenta de precificação", "categoria": "Produto"}, {"data": "2026-02-02", "cliente": "Rede Droga Raia", "produto": "BC", "score": 9, "comentario": "Sistema robusto para nossa escala", "categoria": "Produto"}, {"data": "2026-02-05", "cliente": "Rede Droga Raia", "produto": "SPED", "score": 8, "comentario": "Módulo fiscal muito completo", "categoria": "Produto"}, {"data": "2026-02-08", "cliente": "Farmácia Preço Popular", "produto": "BC", "score": 5, "comentario": "Suporte deveria ser mais rápido", "categoria": "Suporte"}, {"data": "2026-02-10", "cliente": "Drogaria Catarinense", "produto": "BC", "score": 8, "comentario": "Estamos satisfeitos com a evolução", "categoria": "Produto"}, {"data": "2026-02-12", "cliente": "Farmácia Globo", "produto": "App Gestor", "score": 7, "comentario": "Poderia ter mais funcionalidades", "categoria": "Produto"}, {"data": "2026-02-15", "cliente": "Rede Farma Conde", "produto": "BI Estratégico", "score": 9, "comentario": "Nos ajudou muito na tomada de decisão", "categoria": "Produto"}, {"data": "2026-02-18", "cliente": "Rede Drogal", "produto": "PIX", "score": 8, "comentario": "Integração PIX funcionando perfeitamente", "categoria": "Produto"}, {"data": "2026-02-20", "cliente": "Drogaria Araújo", "produto": "SPED", "score": 7, "comentario": "Bom mas interface poderia melhorar", "categoria": "Produto"}, {"data": "2026-02-22", "cliente": "Farmácia São João", "produto": "App Gestor", "score": 8, "comentario": "App melhorou bastante na última versão", "categoria": "Produto"}, {"data": "2026-02-25", "cliente": "Farmácia Panvel", "produto": "BC", "score": 9, "comentario": "Excelente parceria de longa data", "categoria": "Suporte"}, {"data": "2026-02-28", "cliente": "Farmácia Nissei", "produto": "BI Estratégico", "score": 10, "comentario": "Melhor BI que já usamos", "categoria": "Produto"}, {"data": "2026-03-03", "cliente": "Farmácia Pague Menos", "produto": "BC", "score": 8, "comentario": "Sistema estável e confiável", "categoria": "Produto"}, {"data": "2026-03-05", "cliente": "Rede Droga Raia", "produto": "App Gestor", "score": 6, "comentario": "Precisa melhorar a velocidade do app", "categoria": "Produto"}, {"data": "2026-03-08", "cliente": "Drogaria Catarinense", "produto": "SPED", "score": 8, "comentario": "Atende bem nossas necessidades fiscais", "categoria": "Produto"}, {"data": "2026-03-10", "cliente": "Farmácia Indiana", "produto": "BC", "score": 8, "comentario": "Suporte melhorou muito nos últimos meses", "categoria": "Suporte"}, {"data": "2026-03-12", "cliente": "Drogaria Venancio", "produto": "BC", "score": 7, "comentario": "Sistema bom mas treinamento poderia ser melhor", "categoria": "Implantação"}, {"data": "2026-03-15", "cliente": "Rede Farma Conde", "produto": "BC", "score": 9, "comentario": "Muito satisfeitos com o sistema", "categoria": "Produto"}, {"data": "2026-03-18", "cliente": "Farmácia Globo", "produto": "BC", "score": 8, "comentario": "Boa relação custo-benefício", "categoria": "Produto"}, {"data": "2026-03-20", "cliente": "Rede Drogal", "produto": "GCP", "score": 9, "comentario": "Precificação automática economiza muito tempo", "categoria": "Produto"}, {"data": "2026-03-22", "cliente": "Farmácia Panvel", "produto": "SPED", "score": 7, "comentario": "Funciona bem mas poderia ser mais rápido", "categoria": "Produto"}, {"data": "2026-03-25", "cliente": "Drogaria Araújo", "produto": "BC", "score": 8, "comentario": "Evolução constante do produto", "categoria": "Produto"}, {"data": "2026-03-28", "cliente": "Farmácia Nissei", "produto": "BC", "score": 9, "comentario": "Parceria sólida", "categoria": "Suporte"}, {"data": "2026-04-01", "cliente": "Farmácia São João", "produto": "SPED", "score": 8, "comentario": "Módulo fiscal atende plenamente", "categoria": "Produto"}, {"data": "2026-04-04", "cliente": "Rede Droga Raia", "produto": "BI Estratégico", "score": 9, "comentario": "Dashboards cada vez melhores", "categoria": "Produto"}, {"data": "2026-04-07", "cliente": "Farmácia Pague Menos", "produto": "PIX", "score": 7, "comentario": "PIX funciona mas poderia ter mais relatórios", "categoria": "Produto"}, {"data": "2026-04-10", "cliente": "Drogaria Catarinense", "produto": "GCP", "score": 8, "comentario": "GCP facilitou muito nosso dia a dia", "categoria": "Produto"}, {"data": "2026-04-12", "cliente": "Rede Drogal", "produto": "BI Estratégico", "score": 8, "comentario": "Boa ferramenta de análise", "categoria": "Produto"}, {"data": "2026-04-15", "cliente": "Farmácia Panvel", "produto": "App Gestor", "score": 9, "comentario": "App ficou excelente após as atualizações", "categoria": "Produto"}, {"data": "2026-04-18", "cliente": "Drogaria Venancio", "produto": "SPED", "score": 6, "comentario": "Precisa melhorar a documentação", "categoria": "Suporte"}, {"data": "2026-04-20", "cliente": "Farmácia Globo", "produto": "GCP", "score": 7, "comentario": "Ferramenta útil para precificação", "categoria": "Produto"}, {"data": "2026-04-22", "cliente": "Rede Farma Conde", "produto": "PIX", "score": 8, "comentario": "Pagamentos PIX funcionam sem problemas", "categoria": "Produto"}, {"data": "2026-04-25", "cliente": "Farmácia Indiana", "produto": "App Gestor", "score": 8, "comentario": "App está cada vez mais completo", "categoria": "Produto"}, {"data": "2026-04-28", "cliente": "Farmácia Nissei", "produto": "SPED", "score": 8, "comentario": "Excelente módulo fiscal", "categoria": "Produto"}], "is_fictional": true}, "mix": {"total": 90, "status": {"entregue": 45, "aguardando implantação erp": 14, "aguardando": 24, "": 7}, "classificacao": {"Prime": 46, "Gold": 18, "Select 1": 2, "Neo Natal": 6, "SELECT 1": 4, "Implantação": 14}, "dentro_prazo": 21, "fora_prazo": 24, "taxa_prazo": 46.7, "cancelamentos": 2, "cancelamentos_detalhe": [{"cliente": "Marcelo", "motivo": "Cliente solicitou o cancelamento da ferramenta, mencionando que na cidade dele não tem outros usuários do sistema da Trier para poder trazer uma análise mais assertiva", "data": "17/04/2026"}, {"cliente": "Erikson", "motivo": "Cliente solicita cancelamento da ferramenta alegando insatisfação em relação ao processo de implantação, informando que o treinamento não foi realizado no momento da entrega. Ressalto que o treinamento foi prestado alguns dias após a liberação da ferramenta, porém o cliente optou pelo cancelamento", "data": "28/04/2026"}]}, "mix_is_fictional": false};
+
+// ── KPIs ──
+(function() {
+  const g = document.getElementById('kpiGrid');
+  const m = D.metas || {};
+  const c = D.contratos || {};
+  const n = D.nps || {};
+  const cat = D.catalogo || {};
+
+  const npsScore = n.nps_score || 0;
+  const churn = c.churn_rate || 0;
+
+  const kpis = [
+    {label:'Produtos Ativos', value: (cat.ativos||0)+'/'+(cat.total||0), cls:''},
+    {label:'MRR', value: 'R$ '+(c.mrr||0).toLocaleString('pt-BR',{minimumFractionDigits:0}), cls:'ok', meta:m['MRR'], unit:'R$', dir:'max', raw:c.mrr||0},
+    {label:'ARR', value: 'R$ '+(c.arr||0).toLocaleString('pt-BR',{minimumFractionDigits:0}), cls:''},
+    {label:'Clientes Únicos', value: c.clientes_unicos||0, cls:''},
+    {label:'Churn Rate', value: churn+'%', cls: m['Churn Rate'] ? (churn <= m['Churn Rate'] ? 'ok' : churn <= m['Churn Rate']*2 ? 'warn' : 'danger') : '', meta:m['Churn Rate'], unit:'%', dir:'min', raw:churn},
+    {label:'Suspensos', value: c.suspensos||0, cls: (c.suspensos||0) > 0 ? 'warn' : 'ok'},
+    {label:'NPS Score', value: npsScore, cls: m['NPS'] ? (npsScore >= m['NPS'] ? 'ok' : npsScore >= m['NPS']*0.6 ? 'warn' : 'danger') : '', meta:m['NPS'], unit:'', dir:'max', raw:npsScore},
+  ];
+  kpis.forEach(k => {
+    const badge = (k.meta != null) ? metaBadgeHTML(k.raw, k.meta, k.dir, k.unit) : '';
+    g.innerHTML += '<div class="ch-kpi '+(k.cls||'')+'"><div class="kpi-label">'+k.label+'</div><div class="kpi-value">'+k.value+'</div>'+badge+'</div>';
+  });
+})();
+
+// ── Charts ──
+
+// MRR por Produto
+(function() {
+  const pp = D.contratos.por_produto || {};
+  const items = Object.entries(pp).filter(e => e[1].mrr > 0).sort((a,b) => b[1].mrr - a[1].mrr);
+  if (!items.length) return;
+  Plotly.newPlot('chartMRR',[{
+    type:'bar', x:items.map(e=>e[0]), y:items.map(e=>e[1].mrr),
+    marker:{color:'#059669'}, name:'MRR (R$)'
+  }], baseLayout, plotCfg);
+})();
+
+// NPS por Produto
+(function() {
+  const pp = D.nps.por_produto || {};
+  const items = Object.entries(pp).sort((a,b) => b[1] - a[1]);
+  if (!items.length) return;
+  const colors = items.map(e => e[1] >= 50 ? '#16a34a' : e[1] >= 20 ? '#d97706' : '#dc2626');
+  Plotly.newPlot('chartNPS',[{
+    type:'bar', x:items.map(e=>e[0]), y:items.map(e=>e[1]),
+    marker:{color:colors}, name:'NPS'
+  }], baseLayout, plotCfg);
+})();
+
+// Contratos por Status (pie)
+(function() {
+  const ps = D.contratos.por_status || {};
+  if (!Object.keys(ps).length) return;
+  const colorMap = {'Ativo':'#16a34a','Suspenso':'#d97706','Cancelado':'#dc2626'};
+  Plotly.newPlot('chartContratos',[{
+    type:'pie', labels:Object.keys(ps), values:Object.values(ps), hole:.4,
+    marker:{colors:Object.keys(ps).map(k=>colorMap[k]||'#6b7280')},
+    textinfo:'label+value+percent'
+  }],{...baseLayout,margin:{t:10,b:10,l:10,r:10}}, plotCfg);
+})();
+
+// NPS Gauge (donut)
+(function() {
+  const n = D.nps || {};
+  if (!n.total_respostas) return;
+  Plotly.newPlot('chartNPSGauge',[{
+    type:'pie',
+    labels:['Promotores (9-10)','Neutros (7-8)','Detratores (0-6)'],
+    values:[n.promotores||0, n.neutros||0, n.detratores||0],
+    marker:{colors:['#16a34a','#d97706','#dc2626']},
+    hole:.5, textinfo:'label+value+percent'
+  }],{...baseLayout,margin:{t:10,b:10,l:10,r:10},
+    annotations:[{text:'NPS<br>'+n.nps_score,x:.5,y:.5,font:{size:20,color:'#111827'},showarrow:false}]
+  }, plotCfg);
+})();
+
+// Catálogo
+(function() {
+  const el = document.getElementById('catalogTable');
+  const prods = D.catalogo.produtos || [];
+  if (!prods.length) { el.innerHTML = '<p style="color:var(--text-muted);text-align:center">Sem dados</p>'; return; }
+  let html = '<table class="ch-table"><thead><tr><th>Produto</th><th>Tipo</th><th>Categoria</th><th>Lançamento</th><th>Status</th></tr></thead><tbody>';
+  prods.forEach(p => {
+    const sc = p.status.toLowerCase().replace(/[^a-z]/g,'');
+    html += '<tr><td><strong>'+p.nome+'</strong></td><td>'+p.tipo+'</td><td>'+p.categoria+'</td>'+
+      '<td>'+p.lancamento+'</td><td><span class="status-badge '+sc+'">'+p.status+'</span></td></tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+})();
+</script>
+
+<script>
+
+/* ── Connect Hub — JS Utilities ── */
+const baseLayout = {paper_bgcolor:'transparent', plot_bgcolor:'transparent',
+  margin:{t:10, b:50, l:60, r:20},
+  font:{family:'Segoe UI, system-ui, sans-serif', size:12, color:'#374151'},
+  xaxis:{gridcolor:'#e5e7eb', color:'#374151'},
+  yaxis:{gridcolor:'#e5e7eb', color:'#374151'}};
+const plotCfg = {responsive:true, displayModeBar:false};
+
+const HELPS = window.__CH_HELPS || {};
+const INSIGHTS = window.__CH_DATA ? (window.__CH_DATA.insights || []) : [];
+
+/* Meta status */
+function metaStatus(value, target, direction) {
+  if (target == null || value == null || isNaN(value)) return null;
+  const v = parseFloat(value);
+  const t = parseFloat(target);
+  if (direction === 'min') {
+    if (v <= t) return {label:'Na meta', cls:'badge-ok', icon:'✅'};
+    if (v <= t * 1.2) return {label:'Próximo', cls:'badge-warn', icon:'⚠️'};
+    return {label:'Acima', cls:'badge-danger', icon:'🔴'};
+  } else {
+    if (v >= t) return {label:'Na meta', cls:'badge-ok', icon:'✅'};
+    if (v >= t * 0.8) return {label:'Próximo', cls:'badge-warn', icon:'⚠️'};
+    return {label:'Abaixo', cls:'badge-danger', icon:'🔴'};
+  }
+}
+
+/* Render meta badge HTML */
+function metaBadgeHTML(value, target, direction, unit) {
+  const s = metaStatus(value, target, direction);
+  if (!s) return '';
+  const u = unit ? ' ' + unit : '';
+  return '<div class="kpi-meta"><span class="meta-badge ' + s.cls + '">' + s.icon + ' ' + s.label +
+    '</span> Meta: ' + target + u + '</div>';
+}
+
+/* Modal system */
+function showModal(title, bodyHTML, icon) {
+  let overlay = document.getElementById('chModalOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'chModalOverlay';
+    overlay.className = 'ch-modal-overlay';
+    overlay.innerHTML = '<div class="ch-modal"><div class="ch-modal-head"><h4></h4>' +
+      '<button class="ch-modal-close" onclick="closeModal()">✕</button></div>' +
+      '<div class="ch-modal-body"></div></div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+  }
+  const iconHTML = icon ? '<i class="bi ' + icon + '"></i> ' : '';
+  overlay.querySelector('h4').innerHTML = iconHTML + title;
+  overlay.querySelector('.ch-modal-body').innerHTML = bodyHTML;
+  overlay.classList.add('active');
+  document.addEventListener('keydown', _escModal);
+}
+function closeModal() {
+  const o = document.getElementById('chModalOverlay');
+  if (o) o.classList.remove('active');
+  document.removeEventListener('keydown', _escModal);
+}
+function _escModal(e) { if (e.key === 'Escape') closeModal(); }
+
+/* Help button */
+function showHelp(indicatorName) {
+  const h = HELPS[indicatorName];
+  if (!h) { showModal(indicatorName, '<p>Sem informação disponível.</p>', 'bi-question-circle'); return; }
+  let html = '';
+  if (h.desc) html += '<div class="help-section"><h5><i class="bi bi-info-circle"></i> O que é</h5><p>' + h.desc + '</p></div>';
+  if (h.look) html += '<div class="help-section"><h5><i class="bi bi-eye"></i> O que observar</h5><p>' + h.look + '</p></div>';
+  if (h.rec) html += '<div class="help-section"><h5><i class="bi bi-lightbulb"></i> Recomendação</h5><p>' + h.rec + '</p></div>';
+  if (h.solves) html += '<div class="help-section"><h5><i class="bi bi-check2-circle"></i> Que problema resolve</h5><p>' + h.solves + '</p></div>';
+  showModal(indicatorName, html, 'bi-question-circle');
+}
+
+/* Chart insight button */
+function showChartInsights(indicatorNames) {
+  const names = Array.isArray(indicatorNames) ? indicatorNames : [indicatorNames];
+  const matching = INSIGHTS.filter(i => names.some(n =>
+    i.indicator_name && i.indicator_name.toLowerCase().includes(n.toLowerCase())
+  ));
+  if (!matching.length) {
+    showModal('Insights', '<p style="color:var(--text-muted);text-align:center;padding:20px">Nenhum insight para este gráfico.</p>', 'bi-lightbulb');
+    return;
+  }
+  const icons = {atencao:'⚠️', positivo:'✅', acao:'💡'};
+  let html = '';
+  matching.forEach(i => {
+    const action = i.suggested_action ? '<div class="ins-action">→ ' + i.suggested_action + '</div>' : '';
+    html += '<div class="ch-insight ' + i.severity + '"><div class="ins-icon">' +
+      (icons[i.insight_type] || 'ℹ️') + '</div><div class="ins-body"><strong>' + i.indicator_name +
+      '</strong><p>' + i.message + '</p>' + action + '</div></div>';
+  });
+  showModal('Insights do Gráfico', html, 'bi-lightbulb');
+}
+
+/* Insights panel (collapsible) */
+function renderInsightsPanel(containerId, insights) {
+  const el = document.getElementById(containerId);
+  if (!el || !insights || !insights.length) return;
+  const crit = insights.filter(i => i.severity === 'critical').length;
+  const warn = insights.filter(i => i.severity === 'warning').length;
+  const info = insights.filter(i => i.severity === 'info').length;
+  const startOpen = insights.length <= 3;
+
+  let summaryBadges = '';
+  if (crit) summaryBadges += '<span class="sum-badge sum-critical">' + crit + ' crítico' + (crit>1?'s':'') + '</span>';
+  if (warn) summaryBadges += '<span class="sum-badge sum-warning">' + warn + ' atenção</span>';
+  if (info) summaryBadges += '<span class="sum-badge sum-info">' + info + ' info</span>';
+
+  const icons = {atencao:'⚠️', positivo:'✅', acao:'💡'};
+  let listHTML = '';
+  // Sort: critical first, then warning, then info
+  const sorted = [...insights].sort((a,b) => {
+    const order = {critical:0, warning:1, info:2};
+    return (order[a.severity]||2) - (order[b.severity]||2);
+  });
+  sorted.forEach(i => {
+    const action = i.suggested_action ? '<div class="ins-action">→ ' + i.suggested_action + '</div>' : '';
+    listHTML += '<div class="ch-insight ' + i.severity + '"><div class="ins-icon">' +
+      (icons[i.insight_type] || 'ℹ️') + '</div><div class="ins-body"><strong>' + i.indicator_name +
+      '</strong><p>' + i.message + '</p>' + action + '</div></div>';
+  });
+
+  el.innerHTML =
+    '<button class="ch-insights-toggle" onclick="toggleInsights(this)">' +
+    '<i class="bi bi-lightbulb" style="color:var(--warn)"></i>' +
+    '<strong>' + insights.length + ' insight' + (insights.length>1?'s':'') + '</strong>' +
+    '<div class="ch-insights-summary">' + summaryBadges + '</div>' +
+    '<span class="toggle-icon' + (startOpen?' open':'') + '">▼</span>' +
+    '</button>' +
+    '<div class="ch-insights-list' + (startOpen?' open':'') + '">' + listHTML + '</div>';
+}
+function toggleInsights(btn) {
+  const list = btn.nextElementSibling;
+  const icon = btn.querySelector('.toggle-icon');
+  list.classList.toggle('open');
+  icon.classList.toggle('open');
+}
+
+/* Attach chart insight button to a card */
+function attachChartInsight(cardEl, indicatorNames) {
+  const names = Array.isArray(indicatorNames) ? indicatorNames : [indicatorNames];
+  const matching = INSIGHTS.filter(i => names.some(n =>
+    i.indicator_name && i.indicator_name.toLowerCase().includes(n.toLowerCase())
+  ));
+  let actions = cardEl.querySelector('.ch-card-actions');
+  if (!actions) {
+    actions = document.createElement('div');
+    actions.className = 'ch-card-actions';
+    cardEl.appendChild(actions);
+  }
+  const btn = document.createElement('button');
+  btn.className = 'ch-insight-btn';
+  if (matching.some(i => i.severity === 'critical')) btn.classList.add('has-critical');
+  btn.innerHTML = '💡' + (matching.length ? '<span class="badge-count">' + matching.length + '</span>' : '');
+  btn.disabled = !matching.length;
+  btn.title = matching.length ? matching.length + ' insight(s)' : 'Sem insights';
+  btn.onclick = function() { showChartInsights(names); };
+  actions.insertBefore(btn, actions.firstChild);
+}
+
+/* Attach help button to a card title */
+function attachHelp(cardEl, indicatorName) {
+  const h3 = cardEl.querySelector('h3');
+  if (!h3 || !HELPS[indicatorName]) return;
+  const btn = document.createElement('button');
+  btn.className = 'ch-help-btn';
+  btn.innerHTML = '?';
+  btn.title = 'O que é ' + indicatorName;
+  btn.onclick = function(e) { e.stopPropagation(); showHelp(indicatorName); };
+  h3.appendChild(btn);
+}
+
+/* Create meta line for Plotly chart */
+function metaLine(periods, metaValue, label) {
+  if (!metaValue || !periods.length) return null;
+  return {type:'scatter', x:periods, y:Array(periods.length).fill(metaValue),
+    mode:'lines', name:label || 'Meta', line:{color:'#dc2626', dash:'dash', width:2},
+    hovertemplate: 'Meta: %{y}<extra></extra>'};
+}
+
+/* Format number Brazilian style */
+function fmtBR(n, decimals) {
+  if (n == null || isNaN(n)) return '—';
+  return Number(n).toLocaleString('pt-BR', {minimumFractionDigits: decimals||0, maximumFractionDigits: decimals||0});
+}
+
+
+/* Auto-attach help and insight buttons */
+(function() {
+  const chartMap = {"cardMRR": ["MRR"], "cardNPS": ["NPS"], "cardContratos": ["Contratos por Status"], "cardNPSGauge": ["NPS"], "cardCatalog": ["Churn Rate"]};
+  Object.entries(chartMap).forEach(([cardId, indicators]) => {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+    if (indicators.length) {
+      attachHelp(card, indicators[0]);
+      attachChartInsight(card, indicators);
+    }
+  });
+  renderInsightsPanel('chInsightsPanel', INSIGHTS);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Indicadores — Time BC</title>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<style>
+  :root {
+    --bg: #f0f2f5; --panel: #ffffff; --panel2: #f8fafc;
+    --text: #374151; --title: #111827; --accent: #2563eb;
+    --ok: #16a34a; --warn: #d97706; --danger: #dc2626;
+    --grid: #e5e7eb; --border: #d1d5db;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    padding: 0;
+  }
+  header {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    padding: 20px 30px; border-bottom: 2px solid var(--accent);
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  header h1 { font-size: 1.4em; color: var(--title); }
+  header h1 span { color: var(--accent); }
+  .header-info { font-size: 0.85em; color: #6b7280; text-align: right; }
+  .header-info .update { color: var(--ok); font-weight: 600; }
+
+  .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
+
+  /* KPI Cards */
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px; margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--panel); border-radius: 10px; padding: 16px;
+    border-left: 3px solid var(--accent); transition: transform 0.2s, box-shadow 0.2s;
+    cursor: default; border: 1px solid var(--grid); border-left: 3px solid var(--accent);
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+  .kpi-card.ok { border-left-color: var(--ok); }
+  .kpi-card.warn { border-left-color: var(--warn); }
+  .kpi-card.danger { border-left-color: var(--danger); }
+  .kpi-label { font-size: 0.75em; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .kpi-value { font-size: 1.8em; font-weight: 700; line-height: 1; }
+  .kpi-value.ok { color: var(--ok); }
+  .kpi-value.warn { color: var(--warn); }
+  .kpi-value.danger { color: var(--danger); }
+  .kpi-meta { font-size: 0.72em; color: #9ca3af; margin-top: 6px; }
+  .kpi-bar { height: 4px; border-radius: 2px; background: var(--grid); margin-top: 8px; overflow: hidden; }
+  .kpi-bar-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
+
+  /* Chart grid */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .chart-card {
+    background: var(--panel); border-radius: 10px; padding: 16px;
+    min-height: 380px; border: 1px solid var(--grid);
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .chart-card.wide { grid-column: span 2; }
+  .chart-card.full { grid-column: span 3; }
+  .chart-title {
+    font-size: 0.95em; font-weight: 600; color: var(--title);
+    margin-bottom: 12px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--grid);
+  }
+  .chart-title .badge {
+    display: inline-block; background: var(--accent); color: #fff;
+    border-radius: 4px; padding: 2px 8px; font-size: 0.8em;
+    margin-right: 6px; font-weight: 700;
+  }
+
+  /* Summary table */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+  }
+  .summary-card {
+    border: 1px solid var(--grid); box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    background: var(--panel); border-radius: 10px; padding: 20px;
+  }
+  .summary-card h3 { color: var(--title); margin-bottom: 12px; font-size: 1em; }
+  .summary-row {
+    display: flex; justify-content: space-between; padding: 8px 0;
+    border-bottom: 1px solid var(--grid); font-size: 0.9em;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-value { font-weight: 600; }
+
+  /* Backlog table */
+  .table-wrapper { overflow-x: auto; }
+  table {
+    width: 100%; border-collapse: collapse; font-size: 0.82em;
+  }
+  th {
+    background: var(--panel2); color: var(--accent);
+    padding: 10px 8px; text-align: left; font-weight: 600;
+    position: sticky; top: 0;
+  }
+  td { padding: 8px; border-bottom: 1px solid var(--grid); }
+  tr:hover td { background: rgba(37, 99, 235, 0.04); }
+  .badge-danger { background: var(--danger); color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; }
+  .badge-warn { background: var(--warn); color: #000; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; }
+  .badge-ok { background: var(--ok); color: #000; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; }
+
+  /* Navigation tabs */
+  .nav-tabs {
+    display: flex; gap: 4px; margin-bottom: 20px;
+    background: var(--panel); border-radius: 10px; padding: 4px;
+    overflow-x: auto;
+  }
+  .nav-tab {
+    padding: 10px 20px; border-radius: 8px; cursor: pointer;
+    font-size: 0.85em; font-weight: 500; color: #6b7280;
+    transition: all 0.2s; white-space: nowrap; border: none; background: none;
+  }
+  .nav-tab:hover { color: var(--text); background: var(--grid); }
+  .nav-tab.active { color: #fff; background: var(--accent); font-weight: 700; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .tooltip-info {
+    display: inline-block; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--grid); color: #6b7280; text-align: center; line-height: 16px;
+    font-size: 0.7em; cursor: help; margin-left: 4px;
+  }
+
+  /* Section headers inside tabs */
+  .section-header {
+    color: var(--accent); font-size: 1em; font-weight: 700; margin: 28px 0 14px 0;
+    padding-bottom: 8px; border-bottom: 1px solid var(--grid);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .section-header:first-child { margin-top: 0; }
+
+  @media (max-width: 1024px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-card.wide, .chart-card.full { grid-column: span 1; }
+    .summary-grid { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📊 Dashboard <span>Indicadores</span> — Time BC</h1>
+  <div class="header-info">
+    <div>Projeto BC · Connect Hub · YouTrack</div>
+    <div class="update">Atualizado: <span id="updated-at"></span></div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Navigation — 5 abas principais -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showTab('youtrack-tab')">📊 Dados do Youtrack</button>
+    <button class="nav-tab" onclick="showTab('ppr-tab')" style="background:linear-gradient(135deg,#ffa72622,#ffee5822);border:1px solid #ffa72644">🏆 Dados PPR</button>
+    <button class="nav-tab" onclick="showTab('appgestor-tab')" style="background:linear-gradient(135deg,#ab47bc22,#e91e6322);border:1px solid #ab47bc44">📱 Dados App Gestor</button>
+    <button class="nav-tab" onclick="showTab('mix-tab')" style="background:linear-gradient(135deg,#26c6da22,#4fc3f722);border:1px solid #26c6da44">🛒 Dados Mix de Produtos</button>
+    <button class="nav-tab" onclick="showTab('bi-tab')" style="background:linear-gradient(135deg,#66bb6a22,#8bc34a22);border:1px solid #66bb6a44">📈 Dados BI Estratégico</button>
+    <button class="nav-tab" onclick="showTab('custos-tab')" style="background:linear-gradient(135deg,#ef535022,#ff572222);border:1px solid #ef535044">💰 Dados de Custos</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- TAB 1: DADOS DO YOUTRACK                                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="youtrack-tab" class="tab-content active">
+
+    <!-- KPIs -->
+    <div class="kpi-grid" id="kpi-container"></div>
+
+    <!-- Resumo + Alertas -->
+    <div class="summary-grid" style="margin-bottom:24px">
+      <div class="summary-card" id="resumo-exec"></div>
+      <div class="summary-card" id="alertas"></div>
+    </div>
+
+    <!-- SEÇÃO: Visão Geral -->
+    <div class="section-header">Visão Geral</div>
+    <div class="charts-grid">
+      <div class="chart-card"><div class="chart-title"><span class="badge">1</span>Vazão Mensal (Throughput)</div><div id="chart-vazao"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge">2</span>Lead Time — P50 / P85 / P95</div><div id="chart-leadtime"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge">3</span>Fluxo Cumulativo (CFD)</div><div id="chart-cfd"></div></div>
+    </div>
+
+    <!-- SEÇÃO: Entrega & Vazão -->
+    <div class="section-header">Entrega & Vazão</div>
+    <div class="charts-grid">
+      <div class="chart-card wide"><div class="chart-title"><span class="badge">4</span>Vazão por Categoria</div><div id="chart-vazao-cat"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge">5</span>Horas por Categoria</div><div id="chart-horas-cat"></div></div>
+      <div class="chart-card wide"><div class="chart-title"><span class="badge">6</span>Lead Time por Categoria — <span id="lt-periodo"></span></div><div id="chart-lt-cat"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge">7</span>Taxa de Defeitos (%)</div><div id="chart-taxa-def"></div></div>
+    </div>
+
+    <!-- SEÇÃO: Qualidade -->
+    <div class="section-header">Qualidade</div>
+    <div class="charts-grid">
+      <div class="chart-card"><div class="chart-title"><span class="badge">8</span>Defeitos Abertos por Prioridade</div><div id="chart-bugs"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge">9</span>Acurácia das Estimativas</div><div id="chart-acuracia"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge">10</span>SLA 48h — Visão Geral</div><div id="chart-sla"></div></div>
+    </div>
+    <div class="chart-card full" style="margin-top:16px">
+      <div class="chart-title"><span class="badge">11</span>Bugs Abertos — Top 20</div>
+      <div class="table-wrapper" id="tabela-bugs"></div>
+    </div>
+
+    <!-- SEÇÃO: Equipe -->
+    <div class="section-header">Equipe</div>
+    <div class="charts-grid">
+      <div class="chart-card wide"><div class="chart-title"><span class="badge">12</span>Tickets por Analista</div><div id="chart-carga"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge">13</span>Horas Registradas por Analista</div><div id="chart-horas-analista"></div></div>
+    </div>
+
+    <!-- SEÇÃO: Backlog -->
+    <div class="section-header">Backlog</div>
+    <div class="chart-card full">
+      <div class="chart-title"><span class="badge">14</span>Backlog — Tickets mais antigos em andamento</div>
+      <div class="table-wrapper" id="tabela-backlog"></div>
+    </div>
+
+    <!-- SEÇÃO: Diagnóstico -->
+    <div class="section-header">🔍 Diagnóstico — Análise de Causa Raiz</div>
+    <div class="charts-grid">
+      <div class="chart-card wide"><div class="chart-title"><span class="badge" style="background:#ef5350">D1</span>SLA 48h — Estouros por Categoria</div><div id="chart-dd-sla-cat"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#ef5350">D2</span>Vazão — Tendência por Categoria</div><div id="chart-dd-vazao-trend"></div></div>
+      <div class="chart-card wide"><div class="chart-title"><span class="badge" style="background:#ef5350">D3</span>Lead Time P85 — Evolução por Categoria</div><div id="chart-dd-lt-cat"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#ef5350">D4</span>Bugs Abertos por Analista</div><div id="chart-dd-bugs-analista"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#ef5350">D5</span>Backlog Envelhecido (>60d) por Analista</div><div id="chart-dd-backlog-aging"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#ef5350">D6</span>Acurácia de Estimativas por Analista</div><div id="chart-dd-acuracia-analista"></div></div>
+      <div class="chart-card wide"><div class="chart-title"><span class="badge" style="background:#ef5350">D7</span>Eficiência de Fluxo por Analista</div><div id="chart-dd-eficiencia-analista"></div></div>
+    </div>
+    <div class="chart-card full" style="margin-top:16px">
+      <div class="chart-title"><span class="badge" style="background:#ef5350">D8</span>Top 10 Piores SLA — Chamados que mais demoraram</div>
+      <div class="table-wrapper" id="tabela-dd-sla"></div>
+    </div>
+    <div class="chart-card full" style="margin-top:16px">
+      <div class="chart-title"><span class="badge" style="background:#ef5350">D9</span>Gargalos — Tickets com menor eficiência de fluxo</div>
+      <div class="table-wrapper" id="tabela-dd-eficiencia"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- TAB 2: DADOS PPR                                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="ppr-tab" class="tab-content">
+    <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+      <div class="chart-card" style="flex:1;min-width:300px;text-align:center;padding:30px">
+        <div class="chart-title" style="text-align:left"><span class="badge" style="background:#ffa726">PPR</span>Score Geral do Ciclo</div>
+        <div id="gauge-ppr" style="height:260px"></div>
+      </div>
+      <div class="chart-card" style="flex:1;min-width:300px">
+        <div class="chart-title"><span class="badge" style="background:#ffa726">PPR</span>Resumo por Tipo</div>
+        <div id="chart-ppr-tipo"></div>
+      </div>
+      <div class="chart-card" style="flex:1;min-width:300px">
+        <div class="chart-title"><span class="badge" style="background:#ffa726">PPR</span>Prêmio Obtido vs. Peso</div>
+        <div id="chart-ppr-peso"></div>
+      </div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card wide"><div class="chart-title"><span class="badge" style="background:#ffa726">PPR</span>Evolução Mensal dos Indicadores</div><div id="chart-ppr-evolucao"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#ffa726">PPR</span>Status dos Indicadores</div><div id="chart-ppr-status"></div></div>
+    </div>
+    <div class="chart-card full" style="margin-top:16px">
+      <div class="chart-title"><span class="badge" style="background:#ffa726">PPR</span>Detalhamento — Todos os Indicadores</div>
+      <div class="table-wrapper" id="tabela-ppr"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- TAB 3: DADOS APP GESTOR                                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="appgestor-tab" class="tab-content">
+    <p style="color:#6b7280;margin-bottom:20px;font-size:0.9em">Dados da planilha <strong style="color:#ab47bc">App Gestor</strong> — implantações, cancelamentos, coletores e melhorias.</p>
+
+    <div class="kpi-grid" id="appgestor-kpi"></div>
+
+    <div class="charts-grid">
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#ab47bc">AG</span>Status das Implantações</div><div id="chart-ag-status"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#ab47bc">AG</span>Motivos de Cancelamento</div><div id="chart-ag-motivos"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#ab47bc">AG</span>Coletores — Registros por Tipo</div><div id="chart-ag-coletores"></div></div>
+    </div>
+
+    <div class="chart-card full" style="margin-top:16px">
+      <div class="chart-title"><span class="badge" style="background:#ab47bc">AG</span>Cancelamentos — Detalhes</div>
+      <div class="table-wrapper" id="tabela-ag-cancel"></div>
+    </div>
+    <div class="chart-card full" style="margin-top:16px">
+      <div class="chart-title"><span class="badge" style="background:#ab47bc">AG</span>Melhorias Pedidas pelos Clientes</div>
+      <div class="table-wrapper" id="tabela-ag-melhorias"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- TAB 4: DADOS MIX DE PRODUTOS                              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="mix-tab" class="tab-content">
+    <p style="color:#6b7280;margin-bottom:20px;font-size:0.9em">Dados da planilha <strong style="color:#26c6da">Mix de Produtos</strong> — implantações, classificações e cumprimento de prazo.</p>
+
+    <div class="kpi-grid" id="mix-kpi"></div>
+
+    <div class="charts-grid">
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#26c6da">MIX</span>Status das Implantações</div><div id="chart-mix-status"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#26c6da">MIX</span>Classificação das Implantações</div><div id="chart-mix-classif"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#26c6da">MIX</span>Cumprimento de Prazo</div><div id="chart-mix-prazo"></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- TAB 5: DADOS BI ESTRATÉGICO                                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="bi-tab" class="tab-content">
+    <p style="color:#6b7280;margin-bottom:20px;font-size:0.9em">Dados da planilha <strong style="color:#66bb6a">BI Estratégico</strong> — clientes, lojas e engajamento de usuários legado.</p>
+
+    <div class="kpi-grid" id="bi-kpi"></div>
+
+    <div class="charts-grid">
+      <div class="chart-card wide"><div class="chart-title"><span class="badge" style="background:#66bb6a">BI</span>Clientes — Lojas por Cliente</div><div id="chart-bi-lojas"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#66bb6a">BI</span>BC Legado — Engajamento</div><div id="chart-bi-engaj"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#66bb6a">BI</span>BC Legado — Situação Contrato</div><div id="chart-bi-situacao"></div></div>
+    </div>
+
+    <div class="chart-card full" style="margin-top:16px">
+      <div class="chart-title"><span class="badge" style="background:#66bb6a">BI</span>Lista de Clientes BI Estratégico</div>
+      <div class="table-wrapper" id="tabela-bi-clientes"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- TAB 6: DADOS DE CUSTOS                                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="custos-tab" class="tab-content">
+    <p style="color:#6b7280;margin-bottom:20px;font-size:0.9em">Dados de <strong style="color:#ef5350">Custos de Infraestrutura</strong> — servidores de produção (IT, BC, GCP, PIX, CI) em USD e R$.</p>
+
+    <div class="kpi-grid" id="custos-kpi"></div>
+
+    <div class="section-header">Custos em USD</div>
+    <div class="charts-grid">
+      <div class="chart-card wide"><div class="chart-title"><span class="badge" style="background:#ef5350">$</span>Evolução do Custo Total (USD)</div><div id="chart-custos-total-usd"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#ef5350">$</span>Custo USD por Produto (Último Período)</div><div id="chart-custos-usd-pie"></div></div>
+      <div class="chart-card full"><div class="chart-title"><span class="badge" style="background:#ef5350">$</span>Custo USD por Produto — Histórico</div><div id="chart-custos-usd-stack"></div></div>
+    </div>
+
+    <div class="section-header">Custos em R$ (convertido)</div>
+    <div class="charts-grid">
+      <div class="chart-card wide"><div class="chart-title"><span class="badge" style="background:#ef5350">R$</span>Custo Total Mensal (R$)</div><div id="chart-custos-brl-total"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#ef5350">R$</span>Composição em R$ (Último Período)</div><div id="chart-custos-brl-pie"></div></div>
+    </div>
+
+    <div class="section-header">Custo por Loja</div>
+    <div class="charts-grid">
+      <div class="chart-card full"><div class="chart-title"><span class="badge" style="background:#ef5350">📊</span>Histórico do Custo por Loja (USD)</div><div id="chart-custos-loja-hist"></div></div>
+      <div class="chart-card wide"><div class="chart-title"><span class="badge" style="background:#ef5350">📊</span>Custo por Loja vs. Qtd Lojas</div><div id="chart-custos-loja"></div></div>
+      <div class="chart-card"><div class="chart-title"><span class="badge" style="background:#ef5350">💱</span>Cotação do Dólar</div><div id="chart-custos-dolar"></div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DADOS
+// ═══════════════════════════════════════════════════════════════
+const D = {"gerado_em": "08/05/2026 09:27", "metas": [{"Indicador": "Lead Time P85 (dias)", "Atual": 13.95, "Meta": 2.71, "Fórmula": "Ordenar todos os Lead Times → pegar valor na posição 85%", "Descrição": "Reduzir o p85 do lead time para o valor atual do p75 (melhoria de ~10%)", "Explicação": "Lead Time = tempo total (em dias) desde a criação do chamado até sua conclusão. P85 = Percentil 85: 85% dos chamados são resolvidos em até esse número de dias. Quanto MENOR, melhor. Ideal para prometer prazos ao cliente."}, {"Indicador": "Lead Time Médio (dias)", "Atual": 9.0, "Meta": 0.0, "Fórmula": "Σ Lead Times ÷ Qtd Chamados Resolvidos", "Descrição": "Média geral de lead time", "Explicação": "Lead Time Médio = soma de todos os lead times ÷ quantidade de chamados resolvidos. Diferente do P85, a média é sensível a valores extremos. Quanto MENOR, melhor."}, {"Indicador": "Vazão Mensal", "Atual": 294.0, "Meta": 323.0, "Fórmula": "Σ Chamados Resolvidos por Mês ÷ Qtd Meses", "Descrição": "Aumentar throughput mensal em 10% sobre a média histórica", "Explicação": "Vazão (Throughput) = quantidade de chamados resolvidos por mês. Quanto MAIOR, melhor — indica capacidade de entrega da equipe."}, {"Indicador": "Backlog (em andamento)", "Atual": 144.0, "Meta": 101.0, "Fórmula": "COUNT(Chamados com Estado = Open | In Progress | Submitted)", "Descrição": "Reduzir WIP em 30% para melhorar fluxo (Lei de Little)", "Explicação": "Backlog = total de chamados abertos ou em progresso AGORA. Quanto MENOR, melhor — pela Lei de Little, menos backlog = entregas mais rápidas."}, {"Indicador": "Defeitos Abertos", "Atual": 43.0, "Meta": 22.0, "Fórmula": "COUNT(Chamados Categoria=Bug AND Estado ≠ Done/Fixed)", "Descrição": "Reduzir bugs abertos em 50%", "Explicação": "Quantidade de defeitos que ainda NÃO foram resolvidos. Quanto MENOR, melhor — defeitos acumulados indicam dívida técnica."}, {"Indicador": "Taxa Retrabalho %", "Atual": 0.0, "Meta": 0.0, "Fórmula": "(Chamados com Tipo de Rejeição ÷ Total Chamados) × 100", "Descrição": "Reduzir taxa de retrabalho em 30%", "Explicação": "Retrabalho = chamados rejeitados/devolvidos após entrega (ITIL: reincidência). Quanto MENOR, melhor."}, {"Indicador": "SLA 48h %", "Atual": 74.0, "Meta": 79.0, "Fórmula": "(Chamados Resolvidos em ≤48h ÷ Total Resolvidos) × 100", "Descrição": "Aumentar SLA 48h em 5 pontos percentuais", "Explicação": "SLA = Acordo de Nível de Serviço (ITIL). % resolvidos em até 48h. Quanto MAIOR, melhor."}, {"Indicador": "Acurácia Estimativas %", "Atual": 52.9, "Meta": 70.0, "Fórmula": "(Chamados com |Gasto−Estimado| ≤ 20% ÷ Total Estimados) × 100", "Descrição": "70% das issues estimadas dentro de ±20% do gasto real", "Explicação": "Mede se as estimativas de horas estão corretas. Quanto MAIOR, melhor — indica previsibilidade."}, {"Indicador": "Eficiência de Fluxo %", "Atual": 69.2, "Meta": 50.0, "Fórmula": "(Horas Trabalho Ativo ÷ Lead Time em Horas) × 100", "Descrição": "Aumentar eficiência de fluxo em 20%", "Explicação": "Proporção do tempo trabalhado ativamente vs. tempo total (Kanban). Quanto MAIOR, melhor — meta ideal acima de 40-50%."}], "vazao": {"periodos": ["Out/2025", "Nov/2025", "Dez/2025", "Jan/2026", "Fev/2026", "Mar/2026", "Abr/2026", "Mai/2026"], "valores": [56, 366, 192, 316, 366, 458, 436, 162]}, "vazao_meta": 323.0, "vazao_cat": {"periodos": ["Out/2025", "Nov/2025", "Dez/2025", "Jan/2026", "Fev/2026", "Mar/2026", "Abr/2026", "Mai/2026"], "categorias": ["Atendimento", "Bug", "Customização", "Implantação", "Melhoria", "Reunião", "Treinamento"], "dados": {"Atendimento": [14.0, 120.0, 102.0, 163.0, 171.0, 229.0, 185.0, 107.0], "Bug": [12.0, 7.0, 13.0, 8.0, 15.0, 24.0, 15.0, 3.0], "Customização": [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], "Implantação": [2.0, 177.0, 33.0, 61.0, 56.0, 84.0, 107.0, 3.0], "Melhoria": [28.0, 45.0, 18.0, 45.0, 87.0, 50.0, 79.0, 20.0], "Reunião": [0.0, 14.0, 18.0, 35.0, 31.0, 56.0, 47.0, 20.0], "Treinamento": [0.0, 2.0, 8.0, 4.0, 6.0, 15.0, 3.0, 8.0]}}, "lead_time": {"periodos": ["Out/2025", "Nov/2025", "Dez/2025", "Jan/2026", "Fev/2026", "Mar/2026", "Abr/2026", "Mai/2026"], "p50": [7.14, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 6.95], "p85": [54.68, 6.79, 12.33, 2.28, 18.81, 7.38, 11.75, 65.08], "p95": [56.93, 15.21, 31.02, 35.22, 95.8, 51.67, 85.2, 142.01], "meta_p85": 2.71}, "lead_time_cat": {"categorias": ["Atendimento", "Bug", "Customização", "Implantação", "Melhoria", "Reunião", "Treinamento"], "p50": [0.1, 4.26, 0.0, 22.79, 34.04, 0.0, 59.09], "p85": [61.8, 51.95, 0.0, 153.79, 152.63, 47.94, 65.97], "periodo": "Mai/2026"}, "fluxo": {"periodos": ["Ago/2025", "Out/2025", "Nov/2025", "Dez/2025", "Jan/2026", "Fev/2026", "Mar/2026", "Abr/2026", "Mai/2026"], "concluido": [25, 116, 521, 738, 1068, 1409, 1907, 2292, 2372], "em_progresso": [2, 7, 24, 32, 44, 69, 91, 114, 144], "submetido": [12, 27, 57, 70, 84, 98, 130, 167, 187], "aberto": [1, 1, 2, 2, 3, 8, 10, 24, 29]}, "horas_cat": {"categorias": ["Melhoria", "Atendimento", "Bug", "Reunião", "Implantação", "Treinamento", "Customização"], "horas": [7328.95, 2380.35, 908.03, 401.53, 304.58, 221.23, 5.0], "total": 11550.0}, "taxa_defeitos": {"periodos": ["Ago/2025", "Out/2025", "Nov/2025", "Dez/2025", "Jan/2026", "Fev/2026", "Mar/2026", "Abr/2026", "Mai/2026"], "taxas": [10.0, 9.9, 2.0, 7.1, 3.9, 5.2, 7.0, 3.9, 5.9]}, "bugs_prioridade": {"Normal": 24, "Critical": 15, "Major": 2, "Minor": 2}, "bugs_total": 43, "bugs_lista": [{"ID": "BC-2742", "Resumo": "Endpoint obter-saldo-estoque-diario está retornando informação incorretamente no campo total_saida", "Estado": "Open", "Prioridade": "Normal", "Analista": "Não atribuído", "Situação": "Aberto"}, {"ID": "BC-2653", "Resumo": "Dados faltantes em despesa - Farmarcas", "Estado": "In Progress", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-2310", "Resumo": "Incluir dados do campo chave_nfe", "Estado": "Submitted", "Prioridade": "Normal", "Analista": "Arlei Corrêa Zomer", "Situação": "Aberto"}, {"ID": "BC-2674", "Resumo": "Bug de visao para mix de produto", "Estado": "Submitted", "Prioridade": "Normal", "Analista": "Não atribuído", "Situação": "Aberto"}, {"ID": "BC-2673", "Resumo": "Appgestor - Lentidao tela clientes", "Estado": "Submitted", "Prioridade": "Normal", "Analista": "Não atribuído", "Situação": "Aberto"}, {"ID": "BC-2670", "Resumo": "Bug app gestor", "Estado": "Submitted", "Prioridade": "Normal", "Analista": "Não atribuído", "Situação": "Aberto"}, {"ID": "BC-2584", "Resumo": "Dados faltantes farmácias Éden", "Estado": "Submitted", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-2652", "Resumo": "Ajustes dados Éden", "Estado": "Submitted", "Prioridade": "Normal", "Analista": "Não atribuído", "Situação": "Aberto"}, {"ID": "BC-2629", "Resumo": "Lentidão coletor - Connect HUB", "Estado": "Submitted", "Prioridade": "Major", "Analista": "Arlei Corrêa Zomer", "Situação": "Aberto"}, {"ID": "BC-2544", "Resumo": "Campos divergentes dedup incremental", "Estado": "Submitted", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-2531", "Resumo": "Erro 500 ao consultar ENDPOINT MIGRATION", "Estado": "Submitted", "Prioridade": "Normal", "Analista": "Não atribuído", "Situação": "Aberto"}, {"ID": "BC-2493", "Resumo": "Corrigir comportamento dos filtros nos painéis de Tendência e Recorrência", "Estado": "In Progress", "Prioridade": "Normal", "Analista": "Arlei Corrêa Zomer", "Situação": "Aberto"}, {"ID": "BC-2405", "Resumo": "Carga retroativa para rede em implantação", "Estado": "Submitted", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-2404", "Resumo": "Gold estoque falhando por exaustão de recursos do Athena", "Estado": "Submitted", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-2304", "Resumo": "Endpoint vendas V1 retornando valor custo divergente do relatório Trier", "Estado": "Submitted", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-2300", "Resumo": "Endpoint vendas V1 retornando princípio ativo nulo ", "Estado": "Submitted", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-2103", "Resumo": "API Integrador retornando timeout", "Estado": "Submitted", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-1962", "Resumo": "Divergência Dados Éden", "Estado": "In Progress", "Prioridade": "Normal", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-2039", "Resumo": "BUG - atualização 23082", "Estado": "Done", "Prioridade": "Critical", "Analista": "Paulo Eduardo Saraiva", "Situação": "Aberto"}, {"ID": "BC-1870", "Resumo": "Bug liberacao do atualizador", "Estado": "Done", "Prioridade": "Normal", "Analista": "Paulo Eduardo Saraiva", "Situação": "Aberto"}], "carga_equipe": {"analistas": ["Larissa Vertuan Glislere", "Davi Beckhauser", "Luiz Henrique Mendes", "Thiago Julio", "Gabriel Rosalino", "Wanessa de Oliveira Guedes", "Arlei Corrêa Zomer", "Paulo Eduardo Saraiva", "Michele de Barros Santos", "Heloisa Martins Tavares", "Murilo Rodrigues Luciano", "Alex Cardoso de Jesus", "Evandro Bittencourt Fernandes"], "concluido": [0, 16, 27, 20, 8, 76, 118, 100, 167, 243, 278, 404, 913], "em_progresso": [1, 2, 23, 13, 20, 11, 4, 21, 5, 9, 14, 15, 1], "submetido": [1, 0, 0, 29, 39, 7, 10, 33, 5, 1, 20, 7, 34], "horas": [5.0, 404.6, 173.17, 1687.57, 1345.1, 1297.2, 818.6, 785.08, 1421.58, 651.9, 880.03, 1089.67, 933.7], "total": [2, 18, 50, 62, 67, 94, 132, 157, 179, 253, 312, 426, 948]}, "acuracia": {"Dentro": 494, "Superestimado": 257, "Subestimado": 183}, "acuracia_meta": 70.0, "sla": {"dentro": 1740, "total": 2352, "pct": 74.0}, "eficiencia_media": 69.2, "backlog_count": 144, "backlog_top": [{"ID": "BC-14", "Resumo": "Aplicativo Gestorfarma", "Categoria": "Melhoria", "Analista": "Thiago Julio", "Estado": "In Progress", "Dias em Aberto": 267.8, "Criado em": "2025-08-13T17:09:03.850000+00:00"}, {"ID": "BC-41", "Resumo": "Data Pipeline", "Categoria": "Melhoria", "Analista": "Gabriel Rosalino", "Estado": "In Progress", "Dias em Aberto": 262.9, "Criado em": "2025-08-18T15:15:43.368000+00:00"}, {"ID": "BC-48", "Resumo": "Adequação da porcentagem", "Categoria": "Melhoria", "Analista": "Wanessa de Oliveira Guedes", "Estado": "In Progress", "Dias em Aberto": 213.7, "Criado em": "2025-10-06T18:54:04.760000+00:00"}, {"ID": "BC-74", "Resumo": "Filtros fixos mesmo no scroll para baixo", "Categoria": "Melhoria", "Analista": "Thiago Julio", "Estado": "In Progress", "Dias em Aberto": 198.0, "Criado em": "2025-10-22T13:17:21.190000+00:00"}, {"ID": "BC-88", "Resumo": "testes", "Categoria": "Melhoria", "Analista": "Larissa Vertuan Glislere", "Estado": "In Progress", "Dias em Aberto": 190.7, "Criado em": "2025-10-29T18:50:29.870000+00:00"}, {"ID": "BC-138", "Resumo": "Analises - Connect", "Categoria": "Atendimento", "Analista": "Paulo Eduardo Saraiva", "Estado": "In Progress", "Dias em Aberto": 189.0, "Criado em": "2025-10-31T11:38:27.763000+00:00"}, {"ID": "BC-158", "Resumo": "Analise de Mercado", "Categoria": "Melhoria", "Analista": "Paulo Eduardo Saraiva", "Estado": "In Progress", "Dias em Aberto": 188.8, "Criado em": "2025-10-31T18:21:32.013000+00:00"}, {"ID": "BC-187", "Resumo": "Estudos - PBIX", "Categoria": "Melhoria", "Analista": "Paulo Eduardo Saraiva", "Estado": "In Progress", "Dias em Aberto": 185.1, "Criado em": "2025-11-04T11:02:22.087000+00:00"}, {"ID": "BC-183", "Resumo": "Estudo e validação de dados - Regras segurança", "Categoria": "Melhoria", "Analista": "Paulo Eduardo Saraiva", "Estado": "In Progress", "Dias em Aberto": 185.1, "Criado em": "2025-11-04T09:58:52.872000+00:00"}, {"ID": "BC-188", "Resumo": "Reunião Demanda Farmácias Trab. Alemão", "Categoria": "Reunião", "Analista": "Murilo Rodrigues Luciano", "Estado": "In Progress", "Dias em Aberto": 185.0, "Criado em": "2025-11-04T13:35:34.851000+00:00"}, {"ID": "BC-201", "Resumo": "Coletor BC V2", "Categoria": "Melhoria", "Analista": "Thiago Julio", "Estado": "In Progress", "Dias em Aberto": 183.8, "Criado em": "2025-11-05T16:55:59.179000+00:00"}, {"ID": "BC-207", "Resumo": "Atendimento Gruppy", "Categoria": "Atendimento", "Analista": "Paulo Eduardo Saraiva", "Estado": "In Progress", "Dias em Aberto": 183.0, "Criado em": "2025-11-06T11:24:11.492000+00:00"}, {"ID": "BC-215", "Resumo": "Envio de carga para nielsen", "Categoria": "Atendimento", "Analista": "Evandro Bittencourt Fernandes", "Estado": "In Progress", "Dias em Aberto": 182.9, "Criado em": "2025-11-06T13:54:40.616000+00:00"}, {"ID": "BC-235", "Resumo": "Ajustes Paineis - Connect Hub", "Categoria": "Atendimento", "Analista": "Paulo Eduardo Saraiva", "Estado": "In Progress", "Dias em Aberto": 181.8, "Criado em": "2025-11-07T16:54:17.847000+00:00"}, {"ID": "BC-271", "Resumo": "Limitação de dispositivo por usuário", "Categoria": "Implantação", "Analista": "Thiago Julio", "Estado": "In Progress", "Dias em Aberto": 177.8, "Criado em": "2025-11-11T16:36:19.656000+00:00"}], "ppr": {"indicadores": [{"nome": "Aumento clientes ativos", "tipo": "Global", "meta": 146.0, "resultado": 159.33, "variacao": null, "status": "13,33", "premio_pct": 100.0, "peso": 6.0, "ppr": 6.0, "meses": {"jan./2026": 175.0, "fev./2026": 145.0, "mar./2026": 158.0}}, {"nome": "Ouvidorias", "tipo": "Global", "meta": 9.0, "resultado": 5.0, "variacao": null, "status": "-4,00", "premio_pct": 100.0, "peso": 7.0, "ppr": 7.0, "meses": {"jan./2026": 4.0, "fev./2026": 7.0, "mar./2026": 5.0, "abr./2026": 4.0}}, {"nome": "Clientes perdidos", "tipo": "Global", "meta": 16.0, "resultado": 25.0, "variacao": null, "status": "9,00", "premio_pct": 0, "peso": 13.0, "ppr": 0, "meses": {"jan./2026": 25.0, "fev./2026": 25.0}}, {"nome": "Geração de arquivos - SPED", "tipo": "Setorial", "meta": 100.0, "resultado": 99.43, "variacao": null, "status": "-0,57%", "premio_pct": 75.0, "peso": 13.0, "ppr": 9.75, "meses": {"jan./2026": 100.0, "fev./2026": 98.29, "mar./2026": 100.0}}, {"nome": "Implantações - Cadastro Inteligente", "tipo": "Setorial", "meta": 100.0, "resultado": 100.0, "variacao": null, "status": "0,00%", "premio_pct": 100.0, "peso": 13.0, "ppr": 13.0, "meses": {"jan./2026": 100.0, "fev./2026": 100.0, "mar./2026": 100.0}}, {"nome": "Implantações - Gestão do Cadastro de Produtos", "tipo": "Setorial", "meta": 100.0, "resultado": 100.0, "variacao": null, "status": "0,00%", "premio_pct": 100.0, "peso": 13.0, "ppr": 13.0, "meses": {"jan./2026": 100.0, "fev./2026": 100.0, "mar./2026": 100.0}}, {"nome": "Implantações - Parcerias", "tipo": "Setorial", "meta": 100.0, "resultado": 100.0, "variacao": null, "status": "0,00%", "premio_pct": 100.0, "peso": 13.0, "ppr": 13.0, "meses": {"jan./2026": 100.0, "fev./2026": 100.0, "mar./2026": 100.0}}, {"nome": "Cumprimento de prazo de atendimento - BC + CI + GCP + SPED + Parcerias", "tipo": "Setorial", "meta": 98.0, "resultado": 99.92, "variacao": null, "status": "1,92%", "premio_pct": 100.0, "peso": 11.0, "ppr": 11.0, "meses": {"jan./2026": 100.0, "fev./2026": 99.82, "mar./2026": 99.94}}, {"nome": "Índice de retenção de talentos", "tipo": "Setorial", "meta": 99.0, "resultado": 100.0, "variacao": null, "status": "1,00%", "premio_pct": 100.0, "peso": 0, "ppr": 0, "meses": {"jan./2026": 100.0, "fev./2026": 100.0, "mar./2026": 100.0}}, {"nome": "Índice de satisfação dos colaboradores com a empresa", "tipo": "Setorial", "meta": 100.0, "resultado": 100.0, "variacao": null, "status": "0,00%", "premio_pct": 100.0, "peso": 0, "ppr": 0, "meses": {"jan./2026": 100.0, "fev./2026": 100.0}}, {"nome": "Orçamento", "tipo": "Setorial", "meta": 96.0, "resultado": null, "variacao": null, "status": "", "premio_pct": 100.0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Programa 5 S", "tipo": "Setorial", "meta": 9.0, "resultado": null, "variacao": null, "status": "", "premio_pct": 100.0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Horas de treinamento", "tipo": "Setorial", "meta": 7.0, "resultado": 6.51, "variacao": null, "status": "-0,49", "premio_pct": 75.0, "peso": 6.0, "ppr": 4.5, "meses": {"jan./2026": 7.29, "fev./2026": 5.9, "mar./2026": 6.34}}, {"nome": "Avaliação de desempenho", "tipo": "Individual", "meta": 4.0, "resultado": 3.71, "variacao": null, "status": "-0,29", "premio_pct": 75.0, "peso": 5.0, "ppr": 3.75, "meses": {"jun./2026": 3.71}}, {"nome": "Produtividade", "tipo": "", "meta": 0, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "BC (Vendas)", "tipo": "Acomp.", "meta": 2.0, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "BC (Licenças utilizadas por clientes)", "tipo": "Acomp.", "meta": 0, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "CI (Vendas carteira)", "tipo": "Acomp.", "meta": 15.0, "resultado": 19.33, "variacao": null, "status": "4,33", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {"jan./2026": 24.0, "fev./2026": 29.0, "mar./2026": 5.0}}, {"nome": "SPED Vendas", "tipo": "Acomp.", "meta": 58.67, "resultado": 79.0, "variacao": null, "status": "20,33", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {"jan./2026": 93.0, "fev./2026": 97.0, "mar./2026": 47.0}}, {"nome": "GCP (Vendas)", "tipo": "Acomp.", "meta": 19.17, "resultado": 12.33, "variacao": null, "status": "-6,83", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {"jan./2026": 26.0, "fev./2026": 8.0, "mar./2026": 3.0}}, {"nome": "Parcerias - API (Vendas)", "tipo": "Acomp.", "meta": 30.83, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Parcerias - Farmácias App (Vendas)", "tipo": "Acomp.", "meta": 15.0, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Parcerias - Ifood (Vendas)", "tipo": "Acomp.", "meta": 41.17, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Parcerias - My Pharma (Vendas)", "tipo": "Acomp.", "meta": 0, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Parcerias - Napp (Vendas)", "tipo": "Acomp.", "meta": 49.33, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Parcerias - Cardtrack (Vendas)", "tipo": "Acomp.", "meta": 5.83, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Parcerias - Skytef (Vendas)", "tipo": "Acomp.", "meta": 15.83, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Parcerias - Recargas (Rede Trell/RV/Sulcard) (Vendas)", "tipo": "Acomp.", "meta": 17.17, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Parcerias - Pedbot (Vendas)", "tipo": "Acomp.", "meta": 8.17, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Parcerias - Pix Seguro - Pinbank (Vendas)", "tipo": "Acomp.", "meta": 1.0, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Parcerias - Pix Seguro - PaggPix (Vendas)", "tipo": "Acomp.", "meta": 72.5, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Parcerias - Pix Seguro - Fiserv (Vendas)", "tipo": "Acomp.", "meta": 8.0, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Parcerias - Smartped (Vendas)", "tipo": "Acomp.", "meta": 24.17, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "Parcerias - Marka", "tipo": "Acomp.", "meta": 18.17, "resultado": null, "variacao": null, "status": "", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {}}, {"nome": "BC - Gestor Farma", "tipo": "Acomp.", "meta": 0, "resultado": 56.67, "variacao": null, "status": "56,67", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {"jan./2026": 43.0, "fev./2026": 72.0, "mar./2026": 55.0}}, {"nome": "BC - Mix de Produtos", "tipo": "Acomp.", "meta": 0, "resultado": 34.5, "variacao": null, "status": "34,50", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {"fev./2026": 26.0, "mar./2026": 43.0}}, {"nome": "BC - BI Estratégico", "tipo": "Acomp.", "meta": 0, "resultado": 6.0, "variacao": null, "status": "6,00", "premio_pct": 0, "peso": 0, "ppr": 0, "meses": {"mar./2026": 6.0}}], "score": 81.0, "peso_total": 100.0, "ppr_total": 81.0}, "drilldown": {"sla_por_cat": {"Atendimento": {"qtd": 202, "media_horas": 954.9}, "Bug": {"qtd": 41, "media_horas": 659.5}, "Customização": {"qtd": 1, "media_horas": 260.7}, "Implantação": {"qtd": 151, "media_horas": 668.5}, "Melhoria": {"qtd": 189, "media_horas": 756.1}, "Reunião": {"qtd": 19, "media_horas": 1527.1}, "Treinamento": {"qtd": 9, "media_horas": 1285.9}}, "sla_piores": [{"ID": "BC-175", "Resumo": "Validação querys App GestorFarma", "Categoria": "Melhoria", "Prioridade": "Critical", "Horas Resolução": 4409.69}, {"ID": "BC-287", "Resumo": "Demanda de carga no Qlik por CSV", "Categoria": "Melhoria", "Prioridade": "Normal", "Horas Resolução": 4225.43}, {"ID": "BC-563", "Resumo": "Daily", "Categoria": "Reunião", "Prioridade": "Normal", "Horas Resolução": 3885.06}, {"ID": "BC-601", "Resumo": "Contato com clientes AppGestor. ", "Categoria": "Atendimento", "Prioridade": "Critical", "Horas Resolução": 3839.17}, {"ID": "BC-653", "Resumo": "Implantação Connect Hub- 19132", "Categoria": "Implantação", "Prioridade": "Major", "Horas Resolução": 3690.86}, {"ID": "BC-687", "Resumo": "Validar painel precificação - Connect Hub", "Categoria": "Melhoria", "Prioridade": "Normal", "Horas Resolução": 3663.15}, {"ID": "BC-708", "Resumo": "Atendimento BC Legado - Brasil Poupa Lar", "Categoria": "Atendimento", "Prioridade": "Normal", "Horas Resolução": 3569.64}, {"ID": "BC-715", "Resumo": "[TRIER] Projeto DashPress", "Categoria": "Melhoria", "Prioridade": "Major", "Horas Resolução": 3545.51}, {"ID": "BC-137", "Resumo": "Atendimento / Reunião Coletor", "Categoria": "Atendimento", "Prioridade": "Normal", "Horas Resolução": 3482.16}, {"ID": "BC-786", "Resumo": "Apontamento de horas youtrack", "Categoria": "Atendimento", "Prioridade": "Normal", "Horas Resolução": 3408.36}], "lt_detalhado": [{"periodo": "Out/2025", "categoria": "Atendimento", "p85": 0.83, "p50": 0.02, "media": 0.79, "qtd": 14}, {"periodo": "Out/2025", "categoria": "Bug", "p85": 56.89, "p50": 10.01, "media": 18.86, "qtd": 12}, {"periodo": "Out/2025", "categoria": "Implantação", "p85": 0.06, "p50": 0.06, "media": 0.03, "qtd": 2}, {"periodo": "Out/2025", "categoria": "Melhoria", "p85": 54.68, "p50": 22.01, "media": 28.69, "qtd": 28}, {"periodo": "Nov/2025", "categoria": "Atendimento", "p85": 1.06, "p50": 0.0, "media": 0.89, "qtd": 120}, {"periodo": "Nov/2025", "categoria": "Bug", "p85": 3.26, "p50": 1.8, "media": 12.28, "qtd": 7}, {"periodo": "Nov/2025", "categoria": "Customização", "p85": 10.86, "p50": 10.86, "media": 10.86, "qtd": 1}, {"periodo": "Nov/2025", "categoria": "Implantação", "p85": 12.24, "p50": 0.0, "media": 3.5, "qtd": 177}, {"periodo": "Nov/2025", "categoria": "Melhoria", "p85": 14.03, "p50": 2.17, "media": 9.12, "qtd": 45}, {"periodo": "Nov/2025", "categoria": "Reunião", "p85": 0.0, "p50": 0.0, "media": 0.02, "qtd": 14}, {"periodo": "Nov/2025", "categoria": "Treinamento", "p85": 0.0, "p50": 0.0, "media": 0.0, "qtd": 2}, {"periodo": "Dez/2025", "categoria": "Atendimento", "p85": 2.12, "p50": 0.0, "media": 2.86, "qtd": 102}, {"periodo": "Dez/2025", "categoria": "Bug", "p85": 21.08, "p50": 0.01, "media": 7.02, "qtd": 13}, {"periodo": "Dez/2025", "categoria": "Implantação", "p85": 25.77, "p50": 3.98, "media": 9.02, "qtd": 33}, {"periodo": "Dez/2025", "categoria": "Melhoria", "p85": 40.26, "p50": 1.06, "media": 19.98, "qtd": 18}, {"periodo": "Dez/2025", "categoria": "Reunião", "p85": 0.03, "p50": 0.0, "media": 0.07, "qtd": 18}, {"periodo": "Dez/2025", "categoria": "Treinamento", "p85": 0.0, "p50": 0.0, "media": 0.0, "qtd": 8}, {"periodo": "Jan/2026", "categoria": "Atendimento", "p85": 0.97, "p50": 0.0, "media": 3.27, "qtd": 163}, {"periodo": "Jan/2026", "categoria": "Bug", "p85": 0.93, "p50": 0.36, "media": 0.65, "qtd": 8}, {"periodo": "Jan/2026", "categoria": "Implantação", "p85": 0.0, "p50": 0.0, "media": 2.59, "qtd": 61}, {"periodo": "Jan/2026", "categoria": "Melhoria", "p85": 29.09, "p50": 1.8, "media": 12.49, "qtd": 45}, {"periodo": "Jan/2026", "categoria": "Reunião", "p85": 0.0, "p50": 0.0, "media": 0.66, "qtd": 35}, {"periodo": "Jan/2026", "categoria": "Treinamento", "p85": 49.82, "p50": 0.0, "media": 12.46, "qtd": 4}, {"periodo": "Fev/2026", "categoria": "Atendimento", "p85": 2.02, "p50": 0.0, "media": 7.39, "qtd": 171}, {"periodo": "Fev/2026", "categoria": "Bug", "p85": 5.1, "p50": 0.01, "media": 3.13, "qtd": 15}, {"periodo": "Fev/2026", "categoria": "Implantação", "p85": 95.81, "p50": 0.0, "media": 34.37, "qtd": 56}, {"periodo": "Fev/2026", "categoria": "Melhoria", "p85": 15.85, "p50": 0.82, "media": 9.3, "qtd": 87}, {"periodo": "Fev/2026", "categoria": "Reunião", "p85": 0.0, "p50": 0.0, "media": 2.83, "qtd": 31}, {"periodo": "Fev/2026", "categoria": "Treinamento", "p85": 0.0, "p50": 0.0, "media": 0.0, "qtd": 6}, {"periodo": "Mar/2026", "categoria": "Atendimento", "p85": 4.94, "p50": 0.0, "media": 7.36, "qtd": 229}, {"periodo": "Mar/2026", "categoria": "Bug", "p85": 26.01, "p50": 0.03, "media": 10.91, "qtd": 24}, {"periodo": "Mar/2026", "categoria": "Implantação", "p85": 8.06, "p50": 0.0, "media": 6.79, "qtd": 84}, {"periodo": "Mar/2026", "categoria": "Melhoria", "p85": 14.63, "p50": 2.13, "media": 10.7, "qtd": 50}, {"periodo": "Mar/2026", "categoria": "Reunião", "p85": 0.0, "p50": 0.0, "media": 2.92, "qtd": 56}, {"periodo": "Mar/2026", "categoria": "Treinamento", "p85": 0.03, "p50": 0.0, "media": 0.84, "qtd": 15}, {"periodo": "Abr/2026", "categoria": "Atendimento", "p85": 5.14, "p50": 0.0, "media": 6.93, "qtd": 185}, {"periodo": "Abr/2026", "categoria": "Bug", "p85": 29.25, "p50": 3.63, "media": 24.16, "qtd": 15}, {"periodo": "Abr/2026", "categoria": "Implantação", "p85": 8.66, "p50": 0.0, "media": 4.33, "qtd": 107}, {"periodo": "Abr/2026", "categoria": "Melhoria", "p85": 32.81, "p50": 2.93, "media": 18.02, "qtd": 79}, {"periodo": "Abr/2026", "categoria": "Reunião", "p85": 0.0, "p50": 0.0, "media": 11.55, "qtd": 47}, {"periodo": "Abr/2026", "categoria": "Treinamento", "p85": 0.0, "p50": 0.0, "media": 0.0, "qtd": 3}, {"periodo": "Mai/2026", "categoria": "Atendimento", "p85": 61.8, "p50": 0.1, "media": 27.24, "qtd": 107}, {"periodo": "Mai/2026", "categoria": "Bug", "p85": 51.95, "p50": 4.26, "media": 18.78, "qtd": 3}, {"periodo": "Mai/2026", "categoria": "Customização", "p85": 0.0, "p50": 0.0, "media": 0.0, "qtd": 1}, {"periodo": "Mai/2026", "categoria": "Implantação", "p85": 153.79, "p50": 22.79, "media": 63.87, "qtd": 3}, {"periodo": "Mai/2026", "categoria": "Melhoria", "p85": 152.63, "p50": 34.04, "media": 55.73, "qtd": 20}, {"periodo": "Mai/2026", "categoria": "Reunião", "p85": 47.94, "p50": 0.0, "media": 19.75, "qtd": 20}, {"periodo": "Mai/2026", "categoria": "Treinamento", "p85": 65.97, "p50": 59.09, "media": 52.53, "qtd": 8}], "bugs_por_analista": {"Alex Cardoso de Jesus": {"qtd": 1, "prioridades": {"Normal": 1}}, "Arlei Corrêa Zomer": {"qtd": 3, "prioridades": {"Normal": 2, "Major": 1}}, "Evandro Bittencourt Fernandes": {"qtd": 2, "prioridades": {"Critical": 1, "Normal": 1}}, "Gabriel Rosalino": {"qtd": 18, "prioridades": {"Critical": 12, "Normal": 6}}, "Não atribuído": {"qtd": 6, "prioridades": {"Normal": 6}}, "Paulo Eduardo Saraiva": {"qtd": 7, "prioridades": {"Normal": 4, "Critical": 2, "Major": 1}}, "Thiago Julio": {"qtd": 5, "prioridades": {"Normal": 3, "Minor": 2}}, "Wanessa de Oliveira Guedes": {"qtd": 1, "prioridades": {"Normal": 1}}}, "backlog_aging": {"Alex Cardoso de Jesus": {"qtd": 14, "media_dias": 121.2, "max_dias": 168.6}, "Evandro Bittencourt Fernandes": {"qtd": 1, "media_dias": 182.9, "max_dias": 182.9}, "Gabriel Rosalino": {"qtd": 13, "media_dias": 100.7, "max_dias": 262.9}, "Larissa Vertuan Glislere": {"qtd": 1, "media_dias": 190.7, "max_dias": 190.7}, "Michele de Barros Santos": {"qtd": 3, "media_dias": 77.7, "max_dias": 92.7}, "Murilo Rodrigues Luciano": {"qtd": 3, "media_dias": 133.9, "max_dias": 185.0}, "Paulo Eduardo Saraiva": {"qtd": 17, "media_dias": 131.5, "max_dias": 189.0}, "Thiago Julio": {"qtd": 13, "media_dias": 146.0, "max_dias": 267.8}, "Wanessa de Oliveira Guedes": {"qtd": 9, "media_dias": 130.7, "max_dias": 213.7}}, "acuracia_por_analista": {"Alex Cardoso de Jesus": {"total": 2, "dentro": 1, "super": 0, "sub": 1, "dentro_pct": 50.0}, "Arlei Corrêa Zomer": {"total": 111, "dentro": 69, "super": 13, "sub": 29, "dentro_pct": 62.2}, "Davi Beckhauser": {"total": 1, "dentro": 1, "super": 0, "sub": 0, "dentro_pct": 100.0}, "Evandro Bittencourt Fernandes": {"total": 307, "dentro": 229, "super": 27, "sub": 51, "dentro_pct": 74.6}, "Heloisa Martins Tavares": {"total": 218, "dentro": 96, "super": 108, "sub": 14, "dentro_pct": 44.0}, "Luiz Henrique Mendes": {"total": 34, "dentro": 4, "super": 0, "sub": 30, "dentro_pct": 11.8}, "Michele de Barros Santos": {"total": 10, "dentro": 2, "super": 6, "sub": 2, "dentro_pct": 20.0}, "Murilo Rodrigues Luciano": {"total": 224, "dentro": 86, "super": 88, "sub": 50, "dentro_pct": 38.4}, "Não atribuído": {"total": 8, "dentro": 4, "super": 2, "sub": 2, "dentro_pct": 50.0}, "Paulo Eduardo Saraiva": {"total": 3, "dentro": 0, "super": 1, "sub": 2, "dentro_pct": 0.0}, "Thiago Julio": {"total": 9, "dentro": 0, "super": 7, "sub": 2, "dentro_pct": 0.0}, "Wanessa de Oliveira Guedes": {"total": 7, "dentro": 2, "super": 5, "sub": 0, "dentro_pct": 28.6}}, "eficiencia_piores": [{"ID": "BC-175", "Categoria": "Melhoria", "Analista": "Murilo Rodrigues Luciano", "Lead Time (h)": 4409.69, "Trabalho Ativo (h)": 3.0, "Eficiência %": 0.1}, {"ID": "BC-287", "Categoria": "Melhoria", "Analista": "Heloisa Martins Tavares", "Lead Time (h)": 4225.43, "Trabalho Ativo (h)": 196.25, "Eficiência %": 4.6}, {"ID": "BC-563", "Categoria": "Reunião", "Analista": "Alex Cardoso de Jesus", "Lead Time (h)": 3885.06, "Trabalho Ativo (h)": 4.62, "Eficiência %": 0.1}, {"ID": "BC-601", "Categoria": "Atendimento", "Analista": "Evandro Bittencourt Fernandes", "Lead Time (h)": 3839.17, "Trabalho Ativo (h)": 55.07, "Eficiência %": 1.4}, {"ID": "BC-653", "Categoria": "Implantação", "Analista": "Murilo Rodrigues Luciano", "Lead Time (h)": 3690.86, "Trabalho Ativo (h)": 0.17, "Eficiência %": 0.0}, {"ID": "BC-715", "Categoria": "Melhoria", "Analista": "Murilo Rodrigues Luciano", "Lead Time (h)": 3545.51, "Trabalho Ativo (h)": 60.0, "Eficiência %": 1.7}, {"ID": "BC-137", "Categoria": "Atendimento", "Analista": "Paulo Eduardo Saraiva", "Lead Time (h)": 3482.16, "Trabalho Ativo (h)": 2.0, "Eficiência %": 0.1}, {"ID": "BC-786", "Categoria": "Atendimento", "Analista": "Evandro Bittencourt Fernandes", "Lead Time (h)": 3408.36, "Trabalho Ativo (h)": 12.35, "Eficiência %": 0.4}, {"ID": "BC-695", "Categoria": "Bug", "Analista": "Evandro Bittencourt Fernandes", "Lead Time (h)": 3314.9, "Trabalho Ativo (h)": 89.9, "Eficiência %": 2.7}, {"ID": "BC-121", "Categoria": "Atendimento", "Analista": "Evandro Bittencourt Fernandes", "Lead Time (h)": 3190.4, "Trabalho Ativo (h)": 0.75, "Eficiência %": 0.0}, {"ID": "BC-120", "Categoria": "Atendimento", "Analista": "Evandro Bittencourt Fernandes", "Lead Time (h)": 3190.4, "Trabalho Ativo (h)": 0.5, "Eficiência %": 0.0}, {"ID": "BC-688", "Categoria": "Melhoria", "Analista": "Arlei Corrêa Zomer", "Lead Time (h)": 2992.34, "Trabalho Ativo (h)": 75.4, "Eficiência %": 2.5}, {"ID": "BC-270", "Categoria": "Atendimento", "Analista": "Evandro Bittencourt Fernandes", "Lead Time (h)": 2906.83, "Trabalho Ativo (h)": 1.0, "Eficiência %": 0.0}, {"ID": "BC-723", "Categoria": "Atendimento", "Analista": "Arlei Corrêa Zomer", "Lead Time (h)": 2870.6, "Trabalho Ativo (h)": 1.0, "Eficiência %": 0.0}, {"ID": "BC-542", "Categoria": "Implantação", "Analista": "Murilo Rodrigues Luciano", "Lead Time (h)": 2854.74, "Trabalho Ativo (h)": 3.5, "Eficiência %": 0.1}], "eficiencia_por_analista": {"Alex Cardoso de Jesus": {"media": 97.7, "mediana": 100.0, "qtd": 401}, "Arlei Corrêa Zomer": {"media": 49.2, "mediana": 31.1, "qtd": 103}, "Davi Beckhauser": {"media": 12.6, "mediana": 1.6, "qtd": 9}, "Evandro Bittencourt Fernandes": {"media": 78.4, "mediana": 100.0, "qtd": 901}, "Gabriel Rosalino": {"media": 11.1, "mediana": 8.2, "qtd": 6}, "Heloisa Martins Tavares": {"media": 69.0, "mediana": 100.0, "qtd": 240}, "Luiz Henrique Mendes": {"media": 96.3, "mediana": 100.0, "qtd": 27}, "Michele de Barros Santos": {"media": 33.8, "mediana": 10.9, "qtd": 160}, "Murilo Rodrigues Luciano": {"media": 43.0, "mediana": 10.1, "qtd": 255}, "Não atribuído": {"media": 100.0, "mediana": 100.0, "qtd": 2}, "Paulo Eduardo Saraiva": {"media": 56.5, "mediana": 100.0, "qtd": 88}, "Thiago Julio": {"media": 22.2, "mediana": 1.7, "qtd": 12}, "Wanessa de Oliveira Guedes": {"media": 20.4, "mediana": 7.1, "qtd": 73}}, "vazao_trend": {"Atendimento": {"ultimo": 107, "anterior": 185, "diff": -78}, "Bug": {"ultimo": 3, "anterior": 15, "diff": -12}, "Customização": {"ultimo": 1, "anterior": 0, "diff": 1}, "Implantação": {"ultimo": 3, "anterior": 107, "diff": -104}, "Melhoria": {"ultimo": 20, "anterior": 79, "diff": -59}, "Reunião": {"ultimo": 20, "anterior": 47, "diff": -27}, "Treinamento": {"ultimo": 8, "anterior": 3, "diff": 5}}}, "app_gestor": {"total": 274, "status": {"entregue": 253, "implantaçao": 2, "sem dados": 3, "subindo": 13, "trier cloud": 4}, "status_consolidado": {"IMPLANTADO": 253, "NÃO IMPLANTADO": 21, "CANCELAMENTOS": 21}, "cancelamentos": 21, "motivos_cancelamento": {"Preço/Valor": 4, "Migrou p/ BI Estratégico": 3, "Falta funcionalidade": 3, "Outros": 10}, "cancelamentos_detalhe": [{"cliente": "Ocimar", "motivo": "Reclamou do valor do App, o mesmo Relatou que não viu viabilidade no uso do App e não tem demanda de tempo para utilizar o mesmo.", "data": "09/02/2026"}, {"cliente": "Tiago", "motivo": "Migrou para o Bi estrategico", "data": "09/02/2026"}, {"cliente": "Aderson", "motivo": "Migrou para o Bi estrategico esperando a entrega", "data": "09/02/2026"}, {"cliente": "Antonio", "motivo": "Reclamou por falta de indicadores como: não tem indicador sobre as entregas, como ticket médio, entregas por entregador e números de entrega", "data": "21/01/2026"}, {"cliente": "Benedita", "motivo": "Não conseguiu entender o motivo da analise de estoque nao entregar os produtos num parametro completo. Gostaria tbm que o Top produtos vendidos fossem separados por grupo", "data": "10/02/2026"}, {"cliente": "Benedita", "motivo": "Não conseguiu entender o motivo da analise de estoque nao entregar os produtos num parametro completo. Gostaria tbm que o Top produtos vendidos fossem separados por grupo", "data": "10/02/2026"}, {"cliente": "Francinaldo", "motivo": "Migrou para o Bi estrategico esperando a entrega", "data": "25/02/2026"}, {"cliente": "Raquel", "motivo": "Reclamou do valor do App, o mesmo Relatou que não viu viabilidade no uso do App.", "data": "24/02/2026"}, {"cliente": "Elias", "motivo": "Queria acomapnhar meus resultados e de cada atendente,esperava resolver ficar preenchendo relatorios que seria editavel e poderia dexalo do jeito que eu quisesse", "data": "06/03/2026"}, {"cliente": "Zeferino", "motivo": "Cliente acionou que os dados não correspondem com a realidade da loja.", "data": "09/03/2026"}, {"cliente": "Marcos", "motivo": "sem retorno do cliente", "data": "09/03/2026"}, {"cliente": "Raquel", "motivo": "Fiz a contratação pq não tinha custo, para fazer um teste. Usei pouco tempo mas sempre que tentei usar haviam informações diferentes do sistema da Trier nos computadores.", "data": "10/03/2026"}, {"cliente": "Tiago", "motivo": "Depois de treinamento cliente concluiu que vai continuar com o BI", "data": "17/03/2026"}, {"cliente": "Rogerio", "motivo": "Cliente finalizou", "data": "17/03/2026"}, {"cliente": "Rafael", "motivo": "Cliente solicitou o cancelamento da ferramenta, informou que está cancelando alguns módulos pois precisa reduzir o valor da sua mensalidade", "data": "25/03/2026"}], "coletores": {"App": 518, "PowerBI": 2783, "Farmarcas": 247, "Confarma": 155, "Gruppy": 493}, "melhorias": [{"cliente": "...", "melhoria": "Filtro Mês Atual", "especificacao": "No filtro entre as telas possuir o filtro do mês vigente ex.: Mês Atual", "pedidos": "todos apresentados"}, {"cliente": "19132, 14565, 32, 16708", "melhoria": "Filtros", "especificacao": "No filtro entre as telas possuir o filtro do dia atual e semana atual, como um calendario", "pedidos": "8"}, {"cliente": "19132, 14565, 5010", "melhoria": "Filtros", "especificacao": "Quando selecionado o CNPJ ele seguir para todas as telas", "pedidos": "3"}, {"cliente": "19132, 14565, 32,16708", "melhoria": "Atualização do dado", "especificacao": "Mostrar em algum lugar horário de atualização", "pedidos": "10"}, {"cliente": "1913211167", "melhoria": "Localização", "especificacao": "Entender de que região estão \"puxando\" os dados de mercado", "pedidos": "2"}, {"cliente": "14565, 11167", "melhoria": "Localização", "especificacao": "Estabelecer somente na cidade, e conseguir por meio de filtro subir para micro e mesoregião", "pedidos": "2"}, {"cliente": "19373", "melhoria": "Tempo", "especificacao": "Mostrar em algum lugar horário que acaba o periodo de teste", "pedidos": "1"}, {"cliente": "19132, 14565,3210", "melhoria": "Analise de Mercado", "especificacao": "mostrar um rankeamento maior(top 100, top 150)", "pedidos": "3"}, {"cliente": "14565", "melhoria": "Analise de Mercado", "especificacao": "mostrar filtro de rankeamento por grupo (Gen, Similar, Rx..)", "pedidos": "1"}, {"cliente": "29790", "melhoria": "Indicadores", "especificacao": "Indicador sobre as entregas, como ticket médio, entregas por entregador e números de entrega", "pedidos": "1"}, {"cliente": "1531", "melhoria": "Analise de Mercado", "especificacao": "pesquisar um produto específico, para saber o preço da região", "pedidos": "1"}, {"cliente": "3210", "melhoria": "Desempenho Vendedores", "especificacao": "Mostrar media dos ultimos 2 anos na analise", "pedidos": "1"}]}, "mix_produtos": {"total": 90, "status": {"entregue": 45, "aguardando implantação erp": 14, "aguardando": 24, "": 7}, "classificacao": {"Prime": 46, "Gold": 18, "Select 1": 2, "Neo Natal": 6, "SELECT 1": 4, "Implantação": 14}, "dentro_prazo": 21, "fora_prazo": 24, "taxa_prazo": 46.7, "cancelamentos": 2, "cancelamentos_detalhe": [{"cliente": "Marcelo", "motivo": "Cliente solicitou o cancelamento da ferramenta, mencionando que na cidade dele não tem outros usuários do sistema da Trier para poder trazer uma análise mais assertiva", "data": "17/04/2026"}, {"cliente": "Erikson", "motivo": "Cliente solicita cancelamento da ferramenta alegando insatisfação em relação ao processo de implantação, informando que o treinamento não foi realizado no momento da entrega. Ressalto que o treinamento foi prestado alguns dias após a liberação da ferramenta, porém o cliente optou pelo cancelamento", "data": "28/04/2026"}]}, "bi_estrategico": {"total_clientes": 28, "com_entrega": 18, "sem_entrega": 10, "total_lojas": 268, "faturamento_mensal": 2790.0, "clientes": [{"nome": "FARMA & FARMA S/A", "entrega": "20/01/2026", "lojas": "X", "acessos": "5"}, {"nome": "REDE SANAR", "entrega": "Pendente", "lojas": "X", "acessos": "X"}, {"nome": "REDE ASFAR", "entrega": "26/11/2025", "lojas": "X", "acessos": "8"}, {"nome": "REDE CONFARMA", "entrega": "Pendente", "lojas": "113", "acessos": "X"}, {"nome": "REDE VIDA FCIAS", "entrega": "Pendente", "lojas": "X", "acessos": "10"}, {"nome": "Farmacia Desconto Facil", "entrega": "Pendente", "lojas": "1", "acessos": "1"}, {"nome": "REDE BRASIL POUPA LAR", "entrega": "Pendente", "lojas": "X", "acessos": "X"}, {"nome": "DUQUE DE CAXIAS", "entrega": "16/03/2026", "lojas": "14", "acessos": "X"}, {"nome": "Farmacia Sapucaiense", "entrega": "Pendente", "lojas": "", "acessos": ""}, {"nome": "CAVALCANTE PIRES", "entrega": "11/03/2026", "lojas": "8", "acessos": "X"}, {"nome": "ARRUDA & AZEVEDO", "entrega": "09/03/2026", "lojas": "22", "acessos": "X"}, {"nome": "UNA - NEGOCIAÇÕES AVANÇADAS LTDA", "entrega": "05/11/2025", "lojas": "X", "acessos": "9"}, {"nome": "SUPER POPULAR AREIAS DE CIMA", "entrega": "25/03/2026", "lojas": "1", "acessos": "1"}, {"nome": "FARMACIAS JRL LTDA", "entrega": "17/03/2026", "lojas": "7", "acessos": "X"}, {"nome": "L R A A DA SILVA", "entrega": "10/03/2026", "lojas": "3", "acessos": "2 (VALIDAR)"}, {"nome": "TD FARMA", "entrega": "Pendente", "lojas": "14", "acessos": "X"}, {"nome": "BIOFARMA", "entrega": "02/04/2026", "lojas": "3", "acessos": "1"}, {"nome": "NOVA PRATA", "entrega": "10/03/2026", "lojas": "3", "acessos": "1"}, {"nome": "FARMACIA LIMOEIRENSE LTDA", "entrega": "16/03/2026", "lojas": "1", "acessos": "1"}, {"nome": "DIARIAMENTE", "entrega": "13/03/2026", "lojas": "51", "acessos": "2"}, {"nome": "REDE IMPACTO DF", "entrega": "Pendente", "lojas": "X", "acessos": "X"}, {"nome": "SMART FARMA SLZ", "entrega": "12/03/2026", "lojas": "1", "acessos": "1"}, {"nome": "EXTRA MIX FARMA", "entrega": "02/04/2026", "lojas": "9", "acessos": "1"}, {"nome": "REDE BAIRRO", "entrega": "16/03/2026", "lojas": "4", "acessos": "X"}, {"nome": "Farmacia Portela", "entrega": "Pendente", "lojas": "2", "acessos": ""}, {"nome": "Rede Hiperfarma", "entrega": "23/03/2026", "lojas": "x", "acessos": "x"}, {"nome": "Farmacia Portela", "entrega": "Pendente", "lojas": "2", "acessos": ""}, {"nome": "VileoFarma", "entrega": "08/04/2026", "lojas": "x", "acessos": ""}], "legado_engajamento": {"ativos_ok": 50, "sem_acesso_30d": 10, "sem_acesso_90d": 5, "sem_acesso_180d": 23, "total": 88}, "legado_situacao": {"ISENTO": 64, "SEM REGISTRO": 6, "IMPLANTACAO": 1, "INADIMPLENTE": 2, "ATIVO": 15}, "legado_total": 88}, "custos": {"periodos": ["jan/24", "fev/24", "mar/24", "abr/24", "mai/24", "jun/24", "jul/24", "ago/24", "set/24", "out/24", "nov/24", "dez/24", "jan/25", "fev/25", "mar/25", "abr/25", "mai/25", "jun/25", "jul/25", "ago/25", "set/25", "out/25", "nov/25", "dez/25", "jan/26", "fev/26", "mar/26", "abr/26"], "usd": {"IT-PROD": [980.0, 429.0, 439.0, 436.0, 495.0, 649.0, 548.55, 582.0, 571.59, 629.15, 467.55, 669.55, 602.84, 667.55, 757.41, 751.41, 755.79, 724.52, 839.39, 1094.32, 1331.2, 1199.66, 983.91, 1101.52, 1027.09, 967.2, 1532.32, 1445.79], "BC-PROD": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 643.13, 1451.74, 976.61, 1281.93, 1489.93, 1381.88, 2247.12, 2201.3, 2317.01, 3560.09, 5600.63, 7637.23, 8194.45, 11259.24, 14278.98], "GCP-PROD": [456.0, 449.0, 474.0, 744.0, 780.0, 881.0, 1050.69, 924.0, 894.51, 917.0, 648.0, 493.88, 428.51, 401.95, 436.22, 422.44, 432.78, 317.4, 337.53, 352.31, 350.31, 366.68, 354.1, 363.55, 361.57, 333.85, 228.13, 355.59], "PIX-PROD": [145.0, 174.0, 185.0, 181.0, 193.0, 185.0, 192.55, 193.0, 288.27, 185.08, 142.46, 106.59, 105.13, 136.36, 120.97, 129.67, 133.6, 139.1, 152.61, 156.47, 173.31, 163.68, 173.11, 175.88, 149.54, 134.95, 96.71, 142.05], "CI-PROD": [100.0, 14.0, 14.0, 14.0, 15.0, 17.0, 16.0, 17.0, 13.66, 12.89, 22.05, 18.97, 15.61, 15.43, 16.16, 17.59, 17.06, 21.02, 16.65, 19.95, 19.95, 18.38, 19.04, 21.83, 19.32, 52.27, 103.82, 19.53], "Total": [1681.0, 1066.0, 1112.0, 1375.0, 1483.0, 1732.0, 1807.79, 1716.0, 1768.03, 1744.12, 1280.06, 1288.99, 1152.09, 1864.42, 2782.5, 2297.72, 2621.16, 2691.97, 2728.06, 3870.17, 4076.07, 4065.41, 5090.25, 7263.41, 9194.75, 9682.72, 13220.22, 16241.94]}, "brl": {"BC-PROD": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8315.0, 7669.43, 12478.71, 11690.88, 12691.89, 19010.88, 30448.39, 41752.74, 42447.25, 58097.68, 70796.61], "GCP-PROD": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1771.35, 1873.29, 1956.45, 1860.46, 2008.56, 1890.89, 1976.48, 1976.7, 1729.34, 1177.15, 1763.05], "PIX-PROD": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 776.29, 846.99, 868.91, 920.43, 896.59, 924.41, 956.19, 817.54, 699.04, 499.02, 704.3], "CI-PROD": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 4160.71, 4751.02, 6187.76, 7175.82, 6672.06, 5355.75, 6107.2, 5720.72, 5280.85, 8442.48, 7265.2], "Totais": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 15023.35, 15140.73, 21491.83, 21647.6, 22269.1, 27181.94, 39488.25, 50267.7, 50156.49, 68216.34, 80529.16]}, "dolar": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 5.5808, 5.55, 5.5532, 5.3109, 5.4777, 5.34, 5.4366, 5.467, 5.18, 5.16, 4.9581], "lojas": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 207, 693, 1478, 2288, 2946, 3590, 4200, 5300, 6112, 7321, 7361], "custo_loja": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7.2, 1.99, 1.52, 0.96, 0.79, 0.99, 1.33, 1.44, 1.34, 1.54, 1.94], "evolucao": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 0.0, -0.0, 0.0, 0.0]}};
+
+const LAYOUT_BASE = {
+  paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+  font: { color: '#374151', family: 'Segoe UI, system-ui, sans-serif', size: 12 },
+  margin: { l: 50, r: 20, t: 10, b: 50 },
+  xaxis: { gridcolor: '#e5e7eb', zerolinecolor: '#e5e7eb' },
+  yaxis: { gridcolor: '#e5e7eb', zerolinecolor: '#e5e7eb' },
+  legend: { bgcolor: 'rgba(0,0,0,0)', font: { size: 10 } },
+  autosize: true,
+  height: 340,
+};
+
+const CONFIG = { responsive: true, displayModeBar: true, displaylogo: false,
+  modeBarButtonsToRemove: ['lasso2d','select2d'] };
+
+document.getElementById('updated-at').textContent = D.gerado_em;
+
+// ═══════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════
+function showTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  event.target.classList.add('active');
+  // Re-render plots on tab switch (Plotly needs visible container)
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// KPI CARDS
+// ═══════════════════════════════════════════════════════════════
+function renderKPIs() {
+  const container = document.getElementById('kpi-container');
+  const melhorMaior = ['vazão', 'sla', 'acurácia', 'eficiência'];
+
+  D.metas.forEach(m => {
+    const nome = m['Indicador'];
+    const atual = m['Atual'];
+    const meta = m['Meta'];
+    const nomeLow = nome.toLowerCase();
+    const isMaior = melhorMaior.some(k => nomeLow.includes(k));
+
+    let status = 'ok';
+    let pct = 0;
+    if (meta === 0) {
+      status = 'warn';
+    } else if (isMaior) {
+      status = atual >= meta ? 'ok' : (atual >= meta * 0.85 ? 'warn' : 'danger');
+      pct = Math.min(atual / meta * 100, 100);
+    } else {
+      status = atual <= meta ? 'ok' : (atual <= meta * 1.3 ? 'warn' : 'danger');
+      pct = Math.min(meta / atual * 100, 100);
+    }
+
+    const card = document.createElement('div');
+    card.className = `kpi-card ${status}`;
+    card.title = m['Explicação'] || '';
+    card.innerHTML = `
+      <div class="kpi-label">${nome.replace(' (dias)','').replace(' %','%')}</div>
+      <div class="kpi-value ${status}">${atual}</div>
+      <div class="kpi-meta">${meta > 0 ? 'Meta: ' + meta : 'Referência'}</div>
+      ${meta > 0 ? `<div class="kpi-bar"><div class="kpi-bar-fill" style="width:${pct}%;background:var(--${status})"></div></div>` : ''}
+    `;
+    container.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GRÁFICOS
+// ═══════════════════════════════════════════════════════════════
+
+function plotVazao() {
+  const traces = [
+    { x: D.vazao.periodos, y: D.vazao.valores, type: 'bar', name: 'Resolvidos',
+       marker: { color: '#4fc3f7', cornerradius: 4 },
+       text: D.vazao.valores.map(String), textposition: 'outside',
+       textfont: { color: '#374151', size: 11 },
+       hovertemplate: '%{x}: %{y} chamados<extra></extra>' },
+  ];
+  const shapes = [{
+    type: 'line', x0: -0.5, x1: D.vazao.periodos.length - 0.5,
+    y0: D.vazao_meta, y1: D.vazao_meta,
+    line: { color: '#66bb6a', width: 2, dash: 'dash' }
+  }];
+  const annotations = [{
+    x: D.vazao.periodos.length - 1, y: D.vazao_meta,
+    text: `Meta: ${D.vazao_meta}`, showarrow: false,
+    font: { color: '#66bb6a', size: 10 }, yshift: 12
+  }];
+  Plotly.newPlot('chart-vazao', traces,
+    {...LAYOUT_BASE, shapes, annotations, yaxis: {...LAYOUT_BASE.yaxis, title: 'Chamados Resolvidos'} }, CONFIG);
+}
+
+function plotLeadTime() {
+  const traces = [
+    { x: D.lead_time.periodos, y: D.lead_time.p50, mode: 'lines+markers', name: 'P50',
+       line: { color: '#66bb6a', width: 2 }, marker: { size: 7 },
+       hovertemplate: 'P50: %{y:.1f} dias<extra></extra>' },
+    { x: D.lead_time.periodos, y: D.lead_time.p85, mode: 'lines+markers', name: 'P85',
+       line: { color: '#ffa726', width: 2 }, marker: { size: 7, symbol: 'square' },
+       hovertemplate: 'P85: %{y:.1f} dias<extra></extra>' },
+    { x: D.lead_time.periodos, y: D.lead_time.p95, mode: 'lines+markers', name: 'P95',
+       line: { color: '#ef5350', width: 2 }, marker: { size: 7, symbol: 'triangle-up' },
+       hovertemplate: 'P95: %{y:.1f} dias<extra></extra>' },
+  ];
+  const shapes = [{
+    type: 'line', x0: -0.5, x1: D.lead_time.periodos.length,
+    y0: D.lead_time.meta_p85, y1: D.lead_time.meta_p85,
+    line: { color: '#66bb6a', width: 1.5, dash: 'dash' }
+  }];
+  Plotly.newPlot('chart-leadtime', traces,
+    {...LAYOUT_BASE, shapes, yaxis: {...LAYOUT_BASE.yaxis, title: 'Dias'} }, CONFIG);
+}
+
+function plotCFD() {
+  const traces = [
+    { x: D.fluxo.periodos, y: D.fluxo.concluido, fill: 'tozeroy', name: 'Concluído',
+       fillcolor: 'rgba(102,187,106,0.6)', line: { color: '#66bb6a' },
+       hovertemplate: 'Concluído: %{y}<extra></extra>' },
+    { x: D.fluxo.periodos, y: D.fluxo.periodos.map((_,i) => D.fluxo.concluido[i] + D.fluxo.em_progresso[i]),
+       fill: 'tonexty', name: 'Em Progresso',
+       fillcolor: 'rgba(255,167,38,0.6)', line: { color: '#ffa726' },
+       hovertemplate: 'Em Progresso: %{y}<extra></extra>' },
+    { x: D.fluxo.periodos, y: D.fluxo.periodos.map((_,i) => D.fluxo.concluido[i] + D.fluxo.em_progresso[i] + D.fluxo.submetido[i]),
+       fill: 'tonexty', name: 'Submetido',
+       fillcolor: 'rgba(79,195,247,0.6)', line: { color: '#4fc3f7' },
+       hovertemplate: 'Submetido: %{y}<extra></extra>' },
+  ];
+  Plotly.newPlot('chart-cfd', traces,
+    {...LAYOUT_BASE, yaxis: {...LAYOUT_BASE.yaxis, title: 'Tickets (acumulado)'} }, CONFIG);
+}
+
+function plotVazaoCat() {
+  const cores = ['#4fc3f7','#66bb6a','#ffa726','#ef5350','#ab47bc','#26c6da','#ffee58'];
+  const traces = D.vazao_cat.categorias.map((cat, i) => ({
+    x: D.vazao_cat.periodos, y: D.vazao_cat.dados[cat], type: 'bar', name: cat,
+    marker: { color: cores[i % cores.length] },
+    hovertemplate: `${cat}: %{y}<extra></extra>`
+  }));
+  Plotly.newPlot('chart-vazao-cat', traces,
+    {...LAYOUT_BASE, barmode: 'stack', height: 380, yaxis: {...LAYOUT_BASE.yaxis, title: 'Quantidade'} }, CONFIG);
+}
+
+function plotHorasCat() {
+  const cores = ['#4fc3f7','#66bb6a','#ffa726','#ef5350','#ab47bc','#26c6da','#ffee58'];
+  Plotly.newPlot('chart-horas-cat', [{
+    labels: D.horas_cat.categorias,
+    values: D.horas_cat.horas,
+    type: 'pie', hole: 0.5,
+    marker: { colors: cores },
+    textinfo: 'label+percent',
+    textfont: { size: 11 },
+    hovertemplate: '%{label}: %{value:.0f}h (%{percent})<extra></extra>',
+  }], {
+    ...LAYOUT_BASE, height: 380,
+    annotations: [{ text: `${D.horas_cat.total.toLocaleString('pt-BR')}h`, showarrow: false,
+      font: { size: 18, color: '#374151', family: 'Segoe UI' } }],
+  }, CONFIG);
+}
+
+function plotLTCat() {
+  document.getElementById('lt-periodo').textContent = D.lead_time_cat.periodo;
+  const traces = [
+    { y: D.lead_time_cat.categorias, x: D.lead_time_cat.p85, type: 'bar', orientation: 'h',
+       name: 'P85', marker: { color: '#ffa726' },
+       hovertemplate: 'P85: %{x:.1f} dias<extra></extra>' },
+    { y: D.lead_time_cat.categorias, x: D.lead_time_cat.p50, type: 'bar', orientation: 'h',
+       name: 'P50', marker: { color: '#66bb6a' },
+       hovertemplate: 'P50: %{x:.1f} dias<extra></extra>' },
+  ];
+  Plotly.newPlot('chart-lt-cat', traces,
+    {...LAYOUT_BASE, height: 380, barmode: 'overlay',
+      xaxis: {...LAYOUT_BASE.xaxis, title: 'Dias'},
+      margin: {...LAYOUT_BASE.margin, l: 100} }, CONFIG);
+}
+
+function plotTaxaDefeitos() {
+  Plotly.newPlot('chart-taxa-def', [
+    { x: D.taxa_defeitos.periodos, y: D.taxa_defeitos.taxas, type: 'bar',
+       marker: { color: D.taxa_defeitos.taxas.map(v => v > 5 ? '#ef5350' : v > 3 ? '#ffa726' : '#66bb6a') },
+       text: D.taxa_defeitos.taxas.map(v => v + '%'), textposition: 'outside',
+       textfont: { color: '#374151', size: 10 },
+       hovertemplate: '%{x}: %{y:.1f}%<extra></extra>' },
+  ], {...LAYOUT_BASE, yaxis: {...LAYOUT_BASE.yaxis, title: '% Defeitos'} }, CONFIG);
+}
+
+function plotBugs() {
+  const prios = Object.keys(D.bugs_prioridade);
+  const vals = Object.values(D.bugs_prioridade);
+  const cores = { Critical: '#ef5350', Major: '#ffa726', Normal: '#4fc3f7', Minor: '#66bb6a' };
+  Plotly.newPlot('chart-bugs', [{
+    x: prios, y: vals, type: 'bar',
+    marker: { color: prios.map(p => cores[p] || '#888') },
+    text: vals.map(String), textposition: 'outside',
+    textfont: { color: '#374151', size: 12 },
+    hovertemplate: '%{x}: %{y} bugs<extra></extra>',
+  }], {
+    ...LAYOUT_BASE,
+    annotations: [{ text: `Total: ${D.bugs_total} bugs abertos`, xref: 'paper', yref: 'paper',
+      x: 0.98, y: 0.98, showarrow: false,
+      font: { color: '#ef5350', size: 12 },
+      bgcolor: '#ffffff', bordercolor: '#ef5350', borderwidth: 1, borderpad: 6 }],
+  }, CONFIG);
+}
+
+function plotAcuracia() {
+  const labels = Object.keys(D.acuracia);
+  const vals = Object.values(D.acuracia);
+  const cores = { Dentro: '#66bb6a', Superestimado: '#ffa726', Subestimado: '#ef5350' };
+  const total = vals.reduce((a,b) => a+b, 0);
+  Plotly.newPlot('chart-acuracia', [{
+    x: labels, y: vals, type: 'bar',
+    marker: { color: labels.map(l => cores[l] || '#888') },
+    text: vals.map(v => `${v} (${(v/total*100).toFixed(0)}%)`), textposition: 'outside',
+    textfont: { color: '#374151', size: 10 },
+    hovertemplate: '%{x}: %{y} tickets<extra></extra>',
+  }], {
+    ...LAYOUT_BASE,
+    annotations: [{ text: `Meta: ${D.acuracia_meta}% dentro`, xref: 'paper', yref: 'paper',
+      x: 0.98, y: 0.98, showarrow: false,
+      font: { color: '#66bb6a', size: 11 },
+      bgcolor: '#ffffff', bordercolor: '#66bb6a', borderwidth: 1, borderpad: 6 }],
+  }, CONFIG);
+}
+
+function plotSLA() {
+  const fora = D.sla.total - D.sla.dentro;
+  Plotly.newPlot('chart-sla', [{
+    labels: ['Dentro SLA (≤48h)', 'Fora SLA (>48h)'],
+    values: [D.sla.dentro, fora],
+    type: 'pie', hole: 0.6,
+    marker: { colors: ['#66bb6a', '#ef5350'] },
+    textinfo: 'label+percent',
+    textfont: { size: 12 },
+    hovertemplate: '%{label}: %{value} tickets<extra></extra>',
+  }], {
+    ...LAYOUT_BASE, height: 340,
+    annotations: [{ text: `${D.sla.pct}%`, showarrow: false,
+      font: { size: 28, color: D.sla.pct >= 80 ? '#66bb6a' : '#ef5350', family: 'Segoe UI' } }],
+  }, CONFIG);
+}
+
+function plotCarga() {
+  const traces = [
+    { y: D.carga_equipe.analistas, x: D.carga_equipe.concluido, type: 'bar', orientation: 'h',
+       name: 'Concluído', marker: { color: '#66bb6a' } },
+    { y: D.carga_equipe.analistas, x: D.carga_equipe.em_progresso, type: 'bar', orientation: 'h',
+       name: 'Em Progresso', marker: { color: '#ffa726' } },
+    { y: D.carga_equipe.analistas, x: D.carga_equipe.submetido, type: 'bar', orientation: 'h',
+       name: 'Submetido', marker: { color: '#4fc3f7' } },
+  ];
+  Plotly.newPlot('chart-carga', traces,
+    {...LAYOUT_BASE, barmode: 'stack', height: 450,
+      xaxis: {...LAYOUT_BASE.xaxis, title: 'Tickets'},
+      margin: {...LAYOUT_BASE.margin, l: 180} }, CONFIG);
+}
+
+function plotHorasAnalista() {
+  Plotly.newPlot('chart-horas-analista', [{
+    y: D.carga_equipe.analistas,
+    x: D.carga_equipe.horas,
+    type: 'bar', orientation: 'h',
+    marker: { color: D.carga_equipe.horas.map(h => h > 500 ? '#4fc3f7' : h > 200 ? '#ffa726' : '#ef5350') },
+    text: D.carga_equipe.horas.map(h => h.toFixed(0) + 'h'),
+    textposition: 'outside', textfont: { size: 10 },
+    hovertemplate: '%{y}: %{x:.0f}h<extra></extra>',
+  }], {
+    ...LAYOUT_BASE, height: 450,
+    xaxis: {...LAYOUT_BASE.xaxis, title: 'Horas'},
+    margin: {...LAYOUT_BASE.margin, l: 180}
+  }, CONFIG);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TABELAS
+// ═══════════════════════════════════════════════════════════════
+
+function renderBugsTable() {
+  const el = document.getElementById('tabela-bugs');
+  if (!D.bugs_lista.length) { el.innerHTML = '<p>Nenhum bug aberto.</p>'; return; }
+  let html = '<table><thead><tr><th>ID</th><th>Resumo</th><th>Prioridade</th><th>Analista</th><th>Estado</th></tr></thead><tbody>';
+  D.bugs_lista.forEach(b => {
+    const prioClass = b.Prioridade === 'Critical' ? 'badge-danger' : b.Prioridade === 'Major' ? 'badge-warn' : 'badge-ok';
+    html += `<tr><td><strong>${b.ID}</strong></td><td>${b.Resumo}</td><td><span class="${prioClass}">${b.Prioridade}</span></td><td>${b.Analista}</td><td>${b.Estado}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function renderBacklogTable() {
+  const el = document.getElementById('tabela-backlog');
+  if (!D.backlog_top.length) { el.innerHTML = '<p>Nenhum ticket no backlog.</p>'; return; }
+  let html = '<table><thead><tr><th>ID</th><th>Resumo</th><th>Categoria</th><th>Analista</th><th>Dias Aberto</th><th>Estado</th></tr></thead><tbody>';
+  D.backlog_top.forEach(b => {
+    const dias = parseFloat(b['Dias em Aberto'] || 0);
+    const diasClass = dias > 100 ? 'badge-danger' : dias > 60 ? 'badge-warn' : 'badge-ok';
+    html += `<tr><td><strong>${b.ID}</strong></td><td>${b.Resumo}</td><td>${b.Categoria}</td><td>${b.Analista}</td><td><span class="${diasClass}">${dias.toFixed(0)}d</span></td><td>${b.Estado}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESUMO EXECUTIVO
+// ═══════════════════════════════════════════════════════════════
+function renderResumo() {
+  const el = document.getElementById('resumo-exec');
+  const rows = [
+    ['SLA 48h cumprido', `${D.sla.pct}% (${D.sla.dentro}/${D.sla.total})`, D.sla.pct >= 80 ? 'ok' : 'danger'],
+    ['Meta SLA', '81.3%', ''],
+    ['Eficiência de Fluxo', `${D.eficiencia_media}%`, D.eficiencia_media >= 50 ? 'ok' : 'warn'],
+    ['Meta Eficiência', '50.0%', ''],
+    ['Backlog ativo', `${D.backlog_count} tickets`, D.backlog_count <= 40 ? 'ok' : 'warn'],
+    ['Meta Backlog', '≤ 40 tickets', ''],
+    ['Total horas registradas', `${D.horas_cat.total.toLocaleString('pt-BR')}h`, 'accent'],
+  ];
+  el.innerHTML = '<h3>📋 Resumo Executivo</h3>' +
+    rows.map(([l,v,s]) => `<div class="summary-row"><span>${l}</span><span class="summary-value" style="color:var(--${s || 'text'})">${v}</span></div>`).join('');
+}
+
+function renderAlertas() {
+  const el = document.getElementById('alertas');
+  const alertas = [];
+  
+  D.metas.forEach(m => {
+    const melhorMaior = ['vazão','sla','acurácia','eficiência'].some(k => m.Indicador.toLowerCase().includes(k));
+    if (m.Meta === 0) return;
+    if (melhorMaior && m.Atual < m.Meta) alertas.push({ icon: '⚠️', text: `${m.Indicador}: ${m.Atual} (meta: ${m.Meta})`, tipo: 'warn' });
+    if (!melhorMaior && m.Atual > m.Meta) alertas.push({ icon: '🔴', text: `${m.Indicador}: ${m.Atual} (meta: ${m.Meta})`, tipo: 'danger' });
+  });
+
+  if (D.bugs_total > 20) alertas.push({ icon: '🐛', text: `${D.bugs_total} bugs abertos — atenção à dívida técnica`, tipo: 'danger' });
+  if (D.backlog_count > 50) alertas.push({ icon: '📦', text: `Backlog com ${D.backlog_count} tickets — WIP alto`, tipo: 'warn' });
+
+  el.innerHTML = '<h3>🚨 Alertas</h3>' +
+    (alertas.length ? alertas.map(a =>
+      `<div class="summary-row" style="border-left:3px solid var(--${a.tipo});padding-left:8px"><span>${a.icon} ${a.text}</span></div>`
+    ).join('') : '<div class="summary-row">✅ Nenhum alerta crítico</div>');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PPR
+// ═══════════════════════════════════════════════════════════════
+function renderPPR() {
+  if (!D.ppr || !D.ppr.indicadores.length) return;
+  const ppr = D.ppr;
+
+  // ── Gauge Score ──
+  Plotly.newPlot('gauge-ppr', [{
+    type: 'indicator', mode: 'gauge+number+delta',
+    value: ppr.score,
+    number: { suffix: '%', font: { size: 36, color: '#374151' } },
+    delta: { reference: 100, decreasing: { color: '#ef5350' }, increasing: { color: '#66bb6a' } },
+    gauge: {
+      axis: { range: [0, 100], tickcolor: '#9ca3af' },
+      bar: { color: ppr.score >= 80 ? '#66bb6a' : ppr.score >= 60 ? '#ffa726' : '#ef5350' },
+      bgcolor: '#f3f4f6',
+      borderwidth: 0,
+      steps: [
+        { range: [0, 60], color: 'rgba(239,83,80,0.15)' },
+        { range: [60, 80], color: 'rgba(255,167,38,0.15)' },
+        { range: [80, 100], color: 'rgba(102,187,106,0.15)' },
+      ],
+      threshold: { line: { color: '#4fc3f7', width: 3 }, thickness: 0.8, value: 100 },
+    },
+  }], {
+    ...LAYOUT_BASE, height: 260, margin: { l: 30, r: 30, t: 30, b: 10 },
+    annotations: [{ text: `${ppr.ppr_total} / ${ppr.peso_total} pontos`, showarrow: false,
+      x: 0.5, y: -0.05, xref: 'paper', yref: 'paper',
+      font: { size: 13, color: '#6b7280' } }],
+  }, CONFIG);
+
+  // ── Por Tipo ──
+  const tipos = {};  
+  ppr.indicadores.forEach(i => { if(!tipos[i.tipo]) tipos[i.tipo] = {ok:0,fail:0}; if(i.premio_pct >= 100) tipos[i.tipo].ok++; else tipos[i.tipo].fail++; });
+  const tipoLabels = Object.keys(tipos);
+  Plotly.newPlot('chart-ppr-tipo', [
+    { x: tipoLabels, y: tipoLabels.map(t => tipos[t].ok), type: 'bar', name: 'Atingida', marker: { color: '#66bb6a' } },
+    { x: tipoLabels, y: tipoLabels.map(t => tipos[t].fail), type: 'bar', name: 'Abaixo/Perdida', marker: { color: '#ef5350' } },
+  ], { ...LAYOUT_BASE, barmode: 'stack', height: 260 }, CONFIG);
+
+  // ── Peso vs PPR ──
+  const nomes = ppr.indicadores.map(i => i.nome.length > 30 ? i.nome.substring(0,28)+'...' : i.nome);
+  Plotly.newPlot('chart-ppr-peso', [
+    { y: nomes, x: ppr.indicadores.map(i => i.peso), type: 'bar', orientation: 'h', name: 'Peso', marker: { color: '#4fc3f7', opacity: 0.4 } },
+    { y: nomes, x: ppr.indicadores.map(i => i.ppr), type: 'bar', orientation: 'h', name: 'PPR Obtido', marker: { color: ppr.indicadores.map(i => i.ppr >= i.peso ? '#66bb6a' : i.ppr > 0 ? '#ffa726' : '#ef5350') } },
+  ], { ...LAYOUT_BASE, barmode: 'overlay', height: Math.max(260, ppr.indicadores.length * 32),
+     margin: { ...LAYOUT_BASE.margin, l: 200 } }, CONFIG);
+
+  // ── Evolução Mensal ──
+  const mesesAll = ['Jan/2026','Fev/2026','Mar/2026','Abr/2026','Mai/2026','Jun/2026'];
+  const cores = ['#4fc3f7','#66bb6a','#ffa726','#ef5350','#ab47bc','#26c6da','#ffee58','#e91e63','#00bcd4','#8bc34a'];
+  const tracesEvo = ppr.indicadores.filter(i => Object.keys(i.meses).length > 0).map((ind, idx) => {
+    const xVals = mesesAll.filter(m => ind.meses[m] !== undefined);
+    const yVals = xVals.map(m => ind.meses[m]);
+    return {
+      x: xVals, y: yVals, mode: 'lines+markers', name: ind.nome.length > 25 ? ind.nome.substring(0,23)+'...' : ind.nome,
+      line: { color: cores[idx % cores.length], width: 2 }, marker: { size: 7 },
+      hovertemplate: `${ind.nome}<br>%{x}: %{y}<extra></extra>`,
+    };
+  });
+  Plotly.newPlot('chart-ppr-evolucao', tracesEvo, { ...LAYOUT_BASE, height: 380,
+    legend: { font: { size: 9 }, bgcolor: 'rgba(0,0,0,0)' } }, CONFIG);
+
+  // ── Status (donut) ──
+  const statusCount = {};
+  ppr.indicadores.forEach(i => { const s = i.status || 'Sem dados'; statusCount[s] = (statusCount[s]||0)+1; });
+  const statusCores = { 'Acima da meta': '#66bb6a', 'Meta atingida': '#4fc3f7', 'Abaixo da meta': '#ffa726', 'Meta perdida': '#ef5350' };
+  Plotly.newPlot('chart-ppr-status', [{
+    labels: Object.keys(statusCount), values: Object.values(statusCount),
+    type: 'pie', hole: 0.55,
+    marker: { colors: Object.keys(statusCount).map(s => statusCores[s] || '#888') },
+    textinfo: 'label+value', textfont: { size: 11 },
+  }], { ...LAYOUT_BASE, height: 380 }, CONFIG);
+
+  // ── Tabela detalhada ──
+  const el = document.getElementById('tabela-ppr');
+  let html = '<table><thead><tr><th>Indicador</th><th>Tipo</th><th>Meta</th><th>Resultado</th><th>Variação</th><th>Status</th><th>Prêmio</th><th>Peso</th><th>PPR</th></tr></thead><tbody>';
+  ppr.indicadores.forEach(i => {
+    const statusClass = i.status.includes('Acima') || i.status.includes('atingida') ? 'badge-ok' : i.status.includes('Abaixo') ? 'badge-warn' : i.status.includes('perdida') ? 'badge-danger' : '';
+    const varColor = i.variacao !== null ? (i.variacao >= 0 ? (i.status.includes('perdida') ? '#ef5350' : '#66bb6a') : '#ef5350') : '#888';
+    html += `<tr>`;
+    html += `<td><strong>${i.nome}</strong></td>`;
+    html += `<td>${i.tipo}</td>`;
+    html += `<td>${i.meta}</td>`;
+    html += `<td>${i.resultado !== null ? i.resultado : '—'}</td>`;
+    html += `<td style="color:${varColor};font-weight:600">${i.variacao !== null ? (i.variacao >= 0 ? '+' : '') + i.variacao : '—'}</td>`;
+    html += `<td>${statusClass ? '<span class="'+statusClass+'">'+i.status+'</span>' : i.status || '—'}</td>`;
+    html += `<td>${i.premio_pct}%</td>`;
+    html += `<td>${i.peso}</td>`;
+    html += `<td style="font-weight:700;color:${i.ppr >= i.peso ? '#66bb6a' : i.ppr > 0 ? '#ffa726' : '#ef5350'}">${i.ppr}</td>`;
+    html += `</tr>`;
+  });
+  html += `<tr style="background:#222639;font-weight:700"><td colspan="7">TOTAL PPR</td><td>${ppr.peso_total}</td><td style="color:#ffa726;font-size:1.1em">${ppr.ppr_total}</td></tr>`;
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB 3: APP GESTOR
+// ═══════════════════════════════════════════════════════════════
+function renderAppGestor() {
+  const ag = D.app_gestor;
+  if (!ag || !ag.total) return;
+
+  // KPIs
+  const kpiEl = document.getElementById('appgestor-kpi');
+  const entAg = ag.status['entregue'] || (ag.status_consolidado && ag.status_consolidado['entregue']) || 0;
+  const kpis = [
+    { label: 'Total Implantações', value: ag.total, status: 'ok' },
+    { label: 'Entregues', value: entAg, status: 'ok' },
+    { label: 'Cancelamentos', value: ag.cancelamentos, status: ag.cancelamentos <= 10 ? 'warn' : 'danger' },
+  ];
+  if (ag.coletores) {
+    const totalCol = Object.values(ag.coletores).reduce((a,b)=>a+b, 0);
+    kpis.push({ label: 'Total Coletores', value: totalCol.toLocaleString('pt-BR'), status: 'ok' });
+  }
+  if (ag.melhorias) {
+    kpis.push({ label: 'Melhorias Pedidas', value: ag.melhorias.length, status: ag.melhorias.length > 10 ? 'warn' : 'ok' });
+  }
+  kpis.forEach(k => {
+    const card = document.createElement('div');
+    card.className = `kpi-card ${k.status}`;
+    card.innerHTML = `<div class="kpi-label">${k.label}</div><div class="kpi-value ${k.status}">${k.value}</div>`;
+    kpiEl.appendChild(card);
+  });
+
+  // Status (donut)
+  const st = ag.status_consolidado || ag.status;
+  if (st && Object.keys(st).length) {
+    const labels = Object.keys(st);
+    const vals = Object.values(st);
+    const coresAg = labels.map(l => l.toLowerCase().includes('entregue') ? '#66bb6a' : l.toLowerCase().includes('não') ? '#ef5350' : l.toLowerCase().includes('implanta') ? '#ffa726' : '#4fc3f7');
+    Plotly.newPlot('chart-ag-status', [{ labels, values: vals, type: 'pie', hole: 0.5,
+      marker: { colors: coresAg }, textinfo: 'label+value', textfont: { size: 11 },
+      hovertemplate: '%{label}: %{value}<extra></extra>' }],
+      { ...LAYOUT_BASE, height: 340,
+        annotations: [{ text: ag.total + '', showarrow: false, font: { size: 22, color: '#374151' } }] }, CONFIG);
+  }
+
+  // Motivos cancelamento
+  if (ag.motivos_cancelamento && Object.keys(ag.motivos_cancelamento).length) {
+    const mot = ag.motivos_cancelamento;
+    const motKeys = Object.keys(mot);
+    const motCores = { 'Preço/Valor': '#ffa726', 'Migrou p/ BI Estratégico': '#4fc3f7', 'Falta funcionalidade': '#ef5350', 'Outros': '#888' };
+    Plotly.newPlot('chart-ag-motivos', [{ labels: motKeys, values: motKeys.map(k => mot[k]), type: 'pie', hole: 0.5,
+      marker: { colors: motKeys.map(k => motCores[k] || '#888') }, textinfo: 'label+value', textfont: { size: 11 },
+      hovertemplate: '%{label}: %{value} cancelamentos<extra></extra>' }],
+      { ...LAYOUT_BASE, height: 340 }, CONFIG);
+  } else {
+    document.getElementById('chart-ag-motivos').innerHTML = '<p style="color:#66bb6a;padding:40px;text-align:center">Sem dados de cancelamento</p>';
+  }
+
+  // Coletores (barras)
+  if (ag.coletores && Object.keys(ag.coletores).length) {
+    const colNames = Object.keys(ag.coletores);
+    const colVals = Object.values(ag.coletores);
+    const colCores = ['#ab47bc','#4fc3f7','#66bb6a','#ffa726','#ef5350'];
+    Plotly.newPlot('chart-ag-coletores', [{
+      x: colNames, y: colVals, type: 'bar',
+      marker: { color: colCores.slice(0, colNames.length), cornerradius: 4 },
+      text: colVals.map(v => v.toLocaleString('pt-BR')), textposition: 'outside',
+      textfont: { color: '#374151', size: 11 },
+      hovertemplate: '%{x}: %{y} registros<extra></extra>',
+    }], { ...LAYOUT_BASE, height: 340, yaxis: {...LAYOUT_BASE.yaxis, title: 'Registros'} }, CONFIG);
+  }
+
+  // Tabela cancelamentos
+  if (ag.cancelamentos_detalhe && ag.cancelamentos_detalhe.length) {
+    const el = document.getElementById('tabela-ag-cancel');
+    let html = '<table><thead><tr><th>Cliente</th><th>Data</th><th>Motivo</th></tr></thead><tbody>';
+    ag.cancelamentos_detalhe.forEach(c => {
+      html += `<tr><td>${c.cliente}</td><td>${c.data}</td><td style="max-width:500px">${c.motivo}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } else {
+    document.getElementById('tabela-ag-cancel').innerHTML = '<p style="color:#6b7280;padding:20px">Sem dados de cancelamento detalhados.</p>';
+  }
+
+  // Tabela melhorias
+  if (ag.melhorias && ag.melhorias.length) {
+    const el = document.getElementById('tabela-ag-melhorias');
+    let html = '<table><thead><tr><th>Melhoria</th><th>Especificação</th><th>Qtd Pedidos</th><th>Clientes</th></tr></thead><tbody>';
+    ag.melhorias.forEach(m => {
+      html += `<tr><td><strong>${m.melhoria}</strong></td><td style="max-width:400px">${m.especificacao}</td><td style="text-align:center">${m.pedidos}</td><td style="font-size:0.8em;color:#6b7280;max-width:200px;overflow:hidden;text-overflow:ellipsis">${m.cliente}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } else {
+    document.getElementById('tabela-ag-melhorias').innerHTML = '<p style="color:#6b7280;padding:20px">Sem melhorias pedidas registradas.</p>';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB 4: MIX DE PRODUTOS
+// ═══════════════════════════════════════════════════════════════
+function renderMixProdutos() {
+  const mix = D.mix_produtos;
+  if (!mix || !mix.total) return;
+
+  // KPIs
+  const kpiEl = document.getElementById('mix-kpi');
+  const entregues = mix.status['entregue'] || 0;
+  const kpis = [
+    { label: 'Total Implantações', value: mix.total, status: 'ok' },
+    { label: 'Entregues', value: entregues, status: entregues > mix.total * 0.5 ? 'ok' : 'warn' },
+    { label: 'No Prazo', value: mix.taxa_prazo + '%', status: mix.taxa_prazo >= 90 ? 'ok' : mix.taxa_prazo >= 70 ? 'warn' : 'danger' },
+    { label: 'Cancelamentos', value: mix.cancelamentos, status: mix.cancelamentos === 0 ? 'ok' : 'warn' },
+  ];
+  kpis.forEach(k => {
+    const card = document.createElement('div');
+    card.className = `kpi-card ${k.status}`;
+    card.innerHTML = `<div class="kpi-label">${k.label}</div><div class="kpi-value ${k.status}">${k.value}</div>`;
+    kpiEl.appendChild(card);
+  });
+
+  // Status (donut)
+  if (mix.status) {
+    const labels = Object.keys(mix.status);
+    const vals = Object.values(mix.status);
+    const cores = labels.map(l => l.includes('entregue') ? '#66bb6a' : l.toLowerCase().includes('aguardando') ? '#ffa726' : '#4fc3f7');
+    Plotly.newPlot('chart-mix-status', [{ labels, values: vals, type: 'pie', hole: 0.5,
+      marker: { colors: cores }, textinfo: 'label+value', textfont: { size: 11 },
+      hovertemplate: '%{label}: %{value}<extra></extra>' }],
+      { ...LAYOUT_BASE, height: 340,
+        annotations: [{ text: mix.total + '', showarrow: false, font: { size: 22, color: '#374151' } }] }, CONFIG);
+  }
+
+  // Classificação
+  if (mix.classificacao && Object.keys(mix.classificacao).length) {
+    const cls = mix.classificacao;
+    const clsKeys = Object.keys(cls);
+    const clsCores = ['#4fc3f7','#66bb6a','#ffa726','#ef5350','#ab47bc','#26c6da'];
+    Plotly.newPlot('chart-mix-classif', [{ x: clsKeys, y: Object.values(cls), type: 'bar',
+      marker: { color: clsCores.slice(0, clsKeys.length), cornerradius: 4 },
+      text: Object.values(cls).map(String), textposition: 'outside', textfont: { color: '#374151', size: 11 },
+      hovertemplate: '%{x}: %{y} implantações<extra></extra>' }],
+      { ...LAYOUT_BASE, height: 340 }, CONFIG);
+  }
+
+  // Prazo (gauge)
+  Plotly.newPlot('chart-mix-prazo', [{
+    type: 'indicator', mode: 'gauge+number',
+    value: mix.taxa_prazo,
+    number: { suffix: '%', font: { size: 32, color: '#374151' } },
+    gauge: {
+      axis: { range: [0, 100], tickcolor: '#9ca3af' },
+      bar: { color: mix.taxa_prazo >= 90 ? '#66bb6a' : mix.taxa_prazo >= 70 ? '#ffa726' : '#ef5350' },
+      bgcolor: '#f3f4f6', borderwidth: 0,
+      steps: [
+        { range: [0, 70], color: 'rgba(239,83,80,0.15)' },
+        { range: [70, 90], color: 'rgba(255,167,38,0.15)' },
+        { range: [90, 100], color: 'rgba(102,187,106,0.15)' },
+      ],
+    },
+  }], {
+    ...LAYOUT_BASE, height: 340, margin: { l: 30, r: 30, t: 30, b: 10 },
+    annotations: [{ text: `${mix.dentro_prazo} no prazo / ${mix.fora_prazo} atrasados`, showarrow: false,
+      x: 0.5, y: -0.05, xref: 'paper', yref: 'paper',
+      font: { size: 12, color: '#6b7280' } }],
+  }, CONFIG);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB 5: BI ESTRATÉGICO
+// ═══════════════════════════════════════════════════════════════
+function renderBIEstrategico() {
+  const bi = D.bi_estrategico;
+  if (!bi || !bi.total_clientes) return;
+
+  // KPIs
+  const kpiEl = document.getElementById('bi-kpi');
+  const kpis = [
+    { label: 'Total Clientes', value: bi.total_clientes, status: 'ok' },
+    { label: 'Total Lojas', value: bi.total_lojas, status: 'ok' },
+    { label: 'Com Entrega', value: bi.com_entrega, status: 'ok' },
+    { label: 'Sem Entrega', value: bi.sem_entrega, status: bi.sem_entrega === 0 ? 'ok' : 'warn' },
+  ];
+  if (bi.faturamento_mensal) {
+    kpis.push({ label: 'Faturamento Mensal', value: 'R$ ' + bi.faturamento_mensal.toLocaleString('pt-BR'), status: 'ok' });
+  }
+  kpis.push({ label: 'Usuários BC Legado', value: bi.legado_total, status: 'ok' });
+  kpis.forEach(k => {
+    const card = document.createElement('div');
+    card.className = `kpi-card ${k.status}`;
+    card.innerHTML = `<div class="kpi-label">${k.label}</div><div class="kpi-value ${k.status}">${k.value}</div>`;
+    kpiEl.appendChild(card);
+  });
+
+  // Clientes - barras horizontais com lojas
+  if (bi.clientes) {
+    const clientes = bi.clientes.filter(c => c.nome).slice(0, 30);
+    const nomes = clientes.map(c => c.nome.length > 30 ? c.nome.substring(0,28)+'...' : c.nome);
+    const entregaCores = clientes.map(c => c.entrega !== 'Pendente' ? '#66bb6a' : '#ffa726');
+    const lojasNum = clientes.map(c => { try { return parseInt(c.lojas) || 1; } catch(e) { return 1; } });
+    Plotly.newPlot('chart-bi-lojas', [
+      { y: nomes, x: lojasNum, type: 'bar', orientation: 'h', name: 'Lojas',
+        marker: { color: entregaCores, cornerradius: 4 },
+        text: clientes.map(c => c.entrega !== 'Pendente' ? '✓ ' + c.entrega : '⏳ Pendente'),
+        textposition: 'outside', textfont: { size: 9, color: '#6b7280' },
+        hovertemplate: '%{y}<br>Lojas: %{x}<extra></extra>' },
+    ], { ...LAYOUT_BASE, height: Math.max(400, clientes.length * 26),
+      margin: { ...LAYOUT_BASE.margin, l: 200 },
+      xaxis: {...LAYOUT_BASE.xaxis, title: 'Lojas'} }, CONFIG);
+  }
+
+  // Engajamento Legado (donut)
+  if (bi.legado_engajamento) {
+    const eng = bi.legado_engajamento;
+    Plotly.newPlot('chart-bi-engaj', [{ labels: ['Ativo (≤30d)','30-90 dias','90-180 dias','> 180 dias'],
+      values: [eng.ativos_ok, eng.sem_acesso_30d, eng.sem_acesso_90d, eng.sem_acesso_180d],
+      type: 'pie', hole: 0.5, marker: { colors: ['#66bb6a','#ffa726','#ef5350','#888'] },
+      textinfo: 'label+value', textfont: { size: 11 },
+      hovertemplate: '%{label}: %{value} usuários<extra></extra>' }],
+      { ...LAYOUT_BASE, height: 340,
+        annotations: [{ text: bi.legado_total + '', showarrow: false, font: { size: 22, color: '#374151' } }] }, CONFIG);
+  }
+
+  // Situação contrato (barras)
+  if (bi.legado_situacao && Object.keys(bi.legado_situacao).length) {
+    const sitKeys = Object.keys(bi.legado_situacao);
+    const sitVals = Object.values(bi.legado_situacao);
+    const sitCores = sitKeys.map(s => {
+      const sl = s.toLowerCase();
+      if (sl.includes('isento') || sl.includes('ativo')) return '#66bb6a';
+      if (sl.includes('inadimplente')) return '#ef5350';
+      if (sl.includes('implantacao') || sl.includes('implantação')) return '#4fc3f7';
+      return '#ffa726';
+    });
+    Plotly.newPlot('chart-bi-situacao', [{
+      x: sitKeys, y: sitVals, type: 'bar',
+      marker: { color: sitCores, cornerradius: 4 },
+      text: sitVals.map(String), textposition: 'outside', textfont: { color: '#374151', size: 11 },
+      hovertemplate: '%{x}: %{y} usuários<extra></extra>' }],
+      { ...LAYOUT_BASE, height: 340, yaxis: {...LAYOUT_BASE.yaxis, title: 'Usuários'} }, CONFIG);
+  }
+
+  // Tabela clientes
+  if (bi.clientes) {
+    const el = document.getElementById('tabela-bi-clientes');
+    let html = '<table><thead><tr><th>Nome</th><th>Data Entrega</th><th>Lojas</th><th>Acessos</th></tr></thead><tbody>';
+    bi.clientes.forEach(c => {
+      const statusClass = c.entrega !== 'Pendente' ? 'badge-ok' : 'badge-warn';
+      html += `<tr><td><strong>${c.nome}</strong></td><td><span class="${statusClass}">${c.entrega}</span></td><td>${c.lojas}</td><td>${c.acessos}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB 6: CUSTOS DE INFRAESTRUTURA
+// ═══════════════════════════════════════════════════════════════
+function renderCustos() {
+  const c = D.custos;
+  if (!c || !c.periodos || !c.periodos.length) return;
+
+  const P = c.periodos;
+  const coresUsd = ['#4fc3f7','#66bb6a','#ffa726','#ef5350','#ab47bc'];
+  const produtos = ['IT-PROD','BC-PROD','GCP-PROD','PIX-PROD','CI-PROD'];
+
+  // KPIs
+  const kpiEl = document.getElementById('custos-kpi');
+  const lastIdx = P.length - 1;
+  const totalUsdLast = c.usd.Total[lastIdx];
+  const totalBrlLast = c.brl.Totais[lastIdx];
+  const lojasLast = c.lojas[lastIdx];
+  const custoLojaLast = c.custo_loja[lastIdx];
+  const dolarLast = c.dolar.filter(v => v !== null).pop() || 0;
+  const kpis = [
+    { label: 'Custo USD Total (último)', value: '$' + totalUsdLast.toLocaleString('pt-BR', {minimumFractionDigits:2}), status: 'ok' },
+    { label: 'Custo R$ Total (último)', value: 'R$ ' + totalBrlLast.toLocaleString('pt-BR', {minimumFractionDigits:2}), status: totalBrlLast > 50000 ? 'danger' : totalBrlLast > 30000 ? 'warn' : 'ok' },
+    { label: 'Lojas Ativas', value: lojasLast.toLocaleString('pt-BR'), status: 'ok' },
+    { label: 'Custo/Loja (USD)', value: '$' + custoLojaLast.toFixed(2), status: custoLojaLast > 3 ? 'danger' : custoLojaLast > 1.5 ? 'warn' : 'ok' },
+    { label: 'Dólar (cotação)', value: 'R$ ' + dolarLast.toFixed(4), status: 'ok' },
+    { label: 'Período', value: P[lastIdx], status: 'ok' },
+  ];
+  kpis.forEach(k => {
+    const card = document.createElement('div');
+    card.className = `kpi-card ${k.status}`;
+    card.innerHTML = `<div class="kpi-label">${k.label}</div><div class="kpi-value ${k.status}">${k.value}</div>`;
+    kpiEl.appendChild(card);
+  });
+
+  // Total USD line
+  Plotly.newPlot('chart-custos-total-usd', [
+    { x: P, y: c.usd.Total, mode: 'lines+markers', name: 'Total USD',
+       line: { color: '#ef5350', width: 3 }, marker: { size: 7 },
+       fill: 'tozeroy', fillcolor: 'rgba(239,83,80,0.15)',
+       text: c.usd.Total.map(v => '$'+v.toFixed(2)), textposition: 'top',
+       hovertemplate: '%{x}<br>Total: $%{y:,.2f}<extra></extra>' },
+  ], { ...LAYOUT_BASE, height: 380, yaxis: {...LAYOUT_BASE.yaxis, title: 'USD'} }, CONFIG);
+
+  // USD pie (último período)
+  const lastUsd = produtos.map(p => c.usd[p][lastIdx]);
+  Plotly.newPlot('chart-custos-usd-pie', [{
+    labels: produtos, values: lastUsd, type: 'pie', hole: 0.5,
+    marker: { colors: coresUsd }, textinfo: 'label+percent', textfont: { size: 10 },
+    hovertemplate: '%{label}: $%{value:,.2f}<extra></extra>',
+  }], { ...LAYOUT_BASE, height: 380,
+    annotations: [{ text: '$'+totalUsdLast.toFixed(0), showarrow: false, font: { size: 20, color: '#374151' } }],
+  }, CONFIG);
+
+  // USD stacked bars
+  const usdTraces = produtos.map((p, i) => ({
+    x: P, y: c.usd[p], type: 'bar', name: p,
+    marker: { color: coresUsd[i], cornerradius: 2 },
+    hovertemplate: `${p}: $%{y:,.2f}<extra></extra>`,
+  }));
+  Plotly.newPlot('chart-custos-usd-stack', usdTraces,
+    { ...LAYOUT_BASE, barmode: 'stack', height: 380, yaxis: {...LAYOUT_BASE.yaxis, title: 'USD'} }, CONFIG);
+
+  // BRL total line
+  const brlTotais = c.brl.Totais;
+  const brlPeriodos = P.filter((_, i) => brlTotais[i] > 0);
+  const brlVals = brlTotais.filter(v => v > 0);
+  if (brlVals.length) {
+    Plotly.newPlot('chart-custos-brl-total', [
+      { x: brlPeriodos, y: brlVals, type: 'bar',
+         marker: { color: brlVals.map(v => v > 50000 ? '#ef5350' : v > 30000 ? '#ffa726' : '#66bb6a'), cornerradius: 4 },
+         text: brlVals.map(v => 'R$ '+v.toLocaleString('pt-BR', {minimumFractionDigits:0})),
+         textposition: 'outside', textfont: { color: '#374151', size: 10 },
+         hovertemplate: '%{x}<br>R$ %{y:,.2f}<extra></extra>' },
+    ], { ...LAYOUT_BASE, height: 380, yaxis: {...LAYOUT_BASE.yaxis, title: 'R$'} }, CONFIG);
+  }
+
+  // BRL pie (último com dados)
+  const brlProds = ['BC-PROD','GCP-PROD','PIX-PROD','CI-PROD'];
+  const lastBrl = brlProds.map(p => c.brl[p][lastIdx]);
+  if (lastBrl.some(v => v > 0)) {
+    Plotly.newPlot('chart-custos-brl-pie', [{
+      labels: brlProds, values: lastBrl, type: 'pie', hole: 0.5,
+      marker: { colors: ['#66bb6a','#ffa726','#ef5350','#ab47bc'] },
+      textinfo: 'label+percent', textfont: { size: 10 },
+      hovertemplate: '%{label}: R$ %{value:,.2f}<extra></extra>',
+    }], { ...LAYOUT_BASE, height: 380,
+      annotations: [{ text: 'R$'+totalBrlLast.toLocaleString('pt-BR', {minimumFractionDigits:0}), showarrow: false, font: { size: 16, color: '#374151' } }],
+    }, CONFIG);
+  }
+
+  // Histórico custo por loja (todos os períodos)
+  const custoLojaHist = c.custo_loja;
+  const custoLojaP = P.filter((_, i) => custoLojaHist[i] > 0);
+  const custoLojaV = custoLojaHist.filter(v => v > 0);
+  if (custoLojaV.length) {
+    const cores = custoLojaV.map(v => v > 3 ? '#ef5350' : v > 1.5 ? '#ffa726' : '#66bb6a');
+    Plotly.newPlot('chart-custos-loja-hist', [
+      { x: custoLojaP, y: custoLojaV, type: 'bar', name: 'Custo/Loja',
+         marker: { color: cores, cornerradius: 4 },
+         text: custoLojaV.map(v => '$'+v.toFixed(2)),
+         textposition: 'outside', textfont: { color: '#ccc', size: 10 },
+         hovertemplate: '%{x}<br>Custo/Loja: $%{y:.2f}<extra></extra>' },
+      { x: custoLojaP, y: custoLojaV, mode: 'lines', name: 'Tendência',
+         line: { color: '#374151', width: 1, dash: 'dot' }, showlegend: false,
+         hoverinfo: 'skip' },
+    ], { ...LAYOUT_BASE, height: 380,
+      yaxis: {...LAYOUT_BASE.yaxis, title: 'USD / loja'},
+      showlegend: false,
+    }, CONFIG);
+  }
+
+  // Custo por loja vs lojas (dual axis)
+  const lojasP = P.filter((_, i) => c.lojas[i] > 0);
+  const lojasV = c.lojas.filter(v => v > 0);
+  const custoL = c.custo_loja.filter((_, i) => c.lojas[i] > 0);
+  if (lojasV.length) {
+    Plotly.newPlot('chart-custos-loja', [
+      { x: lojasP, y: lojasV, type: 'bar', name: 'Qtd Lojas', yaxis: 'y2',
+         marker: { color: '#4fc3f7', opacity: 0.4, cornerradius: 4 },
+         hovertemplate: '%{x}: %{y} lojas<extra></extra>' },
+      { x: lojasP, y: custoL, mode: 'lines+markers', name: 'Custo/Loja ($)',
+         line: { color: '#ef5350', width: 3 }, marker: { size: 8, symbol: 'diamond' },
+         text: custoL.map(v => '$'+v.toFixed(2)), textposition: 'top',
+         textfont: { color: '#ef5350', size: 11 },
+         hovertemplate: '%{x}: $%{y:.2f}/loja<extra></extra>' },
+    ], { ...LAYOUT_BASE, height: 380,
+      yaxis: { ...LAYOUT_BASE.yaxis, title: 'Custo/Loja (USD)', side: 'left' },
+      yaxis2: { overlaying: 'y', side: 'right', title: 'Qtd Lojas', gridcolor: 'transparent',
+                font: { color: '#4fc3f7' }, tickfont: { color: '#4fc3f7' } },
+      legend: { x: 0.01, y: 1.1, orientation: 'h' },
+    }, CONFIG);
+  }
+
+  // Cotação dólar
+  const dolarP = P.filter((_, i) => c.dolar[i] !== null);
+  const dolarV = c.dolar.filter(v => v !== null);
+  if (dolarV.length) {
+    Plotly.newPlot('chart-custos-dolar', [
+      { x: dolarP, y: dolarV, mode: 'lines+markers', name: 'Cotação',
+         line: { color: '#ffa726', width: 2 }, marker: { size: 7 },
+         fill: 'tozeroy', fillcolor: 'rgba(255,167,38,0.1)',
+         text: dolarV.map(v => 'R$'+v.toFixed(2)),
+         hovertemplate: '%{x}: R$ %{y:.4f}<extra></extra>' },
+    ], { ...LAYOUT_BASE, height: 380, yaxis: {...LAYOUT_BASE.yaxis, title: 'R$/USD'} }, CONFIG);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DIAGNÓSTICO — Análise de Causa Raiz
+// ═══════════════════════════════════════════════════════════════
+function renderDiagnostico() {
+  const dd = D.drilldown;
+  if (!dd) return;
+
+  // D1 — SLA estouros por categoria
+  const slaCats = Object.keys(dd.sla_por_cat);
+  if (slaCats.length) {
+    Plotly.newPlot('chart-dd-sla-cat', [
+      { x: slaCats, y: slaCats.map(c => dd.sla_por_cat[c].qtd), type: 'bar', name: 'Qtd Fora SLA',
+         marker: { color: '#ef5350', cornerradius: 4 },
+         text: slaCats.map(c => dd.sla_por_cat[c].qtd + ' (' + dd.sla_por_cat[c].media_horas + 'h)'),
+         textposition: 'outside', textfont: { size: 10, color: '#374151' },
+         hovertemplate: '%{x}<br>%{y} chamados fora do SLA<br>Média: ' +
+           slaCats.map(c => dd.sla_por_cat[c].media_horas).join('h, ') + 'h<extra></extra>' },
+    ], { ...LAYOUT_BASE, height: 340 }, CONFIG);
+  } else {
+    document.getElementById('chart-dd-sla-cat').innerHTML = '<p style="color:#66bb6a;padding:40px;text-align:center">✅ Nenhum estouro de SLA encontrado</p>';
+  }
+
+  // D2 — Vazão tendência por categoria
+  const vtCats = Object.keys(dd.vazao_trend);
+  if (vtCats.length) {
+    const cores = vtCats.map(c => dd.vazao_trend[c].diff >= 0 ? '#66bb6a' : '#ef5350');
+    Plotly.newPlot('chart-dd-vazao-trend', [
+      { x: vtCats, y: vtCats.map(c => dd.vazao_trend[c].anterior), type: 'bar', name: 'Período anterior',
+         marker: { color: '#4fc3f7', opacity: 0.4, cornerradius: 4 } },
+      { x: vtCats, y: vtCats.map(c => dd.vazao_trend[c].ultimo), type: 'bar', name: 'Último período',
+         marker: { color: cores, cornerradius: 4 },
+         text: vtCats.map(c => { const d = dd.vazao_trend[c].diff; return (d>=0?'+':'')+d; }),
+         textposition: 'outside', textfont: { size: 11, color: cores } },
+    ], { ...LAYOUT_BASE, barmode: 'group', height: 340 }, CONFIG);
+  }
+
+  // D3 — Lead Time P85 por categoria ao longo do tempo (heatmap-like grouped bar)
+  if (dd.lt_detalhado.length) {
+    const ltPeriodos = [...new Set(dd.lt_detalhado.map(d => d.periodo))].sort((a,b) => {
+      const ka = a.split('/'); const kb = b.split('/');
+      const meses = {Jan:1,Fev:2,Mar:3,Abr:4,Mai:5,Jun:6,Jul:7,Ago:8,Set:9,Out:10,Nov:11,Dez:12};
+      return (ka[1]+'-'+(meses[ka[0]]||0).toString().padStart(2,'0')).localeCompare(kb[1]+'-'+(meses[kb[0]]||0).toString().padStart(2,'0'));
+    });
+    const ltCats = [...new Set(dd.lt_detalhado.map(d => d.categoria))];
+    const ltCores = ['#4fc3f7','#66bb6a','#ffa726','#ef5350','#ab47bc','#26c6da','#ffee58','#e91e63'];
+    const ltTraces = ltCats.map((cat, i) => {
+      const vals = ltPeriodos.map(p => {
+        const r = dd.lt_detalhado.find(d => d.periodo === p && d.categoria === cat);
+        return r ? r.p85 : 0;
+      });
+      return { x: ltPeriodos, y: vals, type: 'scatter', mode: 'lines+markers', name: cat,
+        line: { color: ltCores[i % ltCores.length], width: 2 }, marker: { size: 6 },
+        hovertemplate: cat + '<br>%{x}: P85 = %{y} dias<extra></extra>' };
+    });
+    Plotly.newPlot('chart-dd-lt-cat', ltTraces, { ...LAYOUT_BASE, height: 340,
+      legend: { font: { size: 9 } },
+      shapes: [{ type: 'line', x0: ltPeriodos[0], x1: ltPeriodos[ltPeriodos.length-1],
+        y0: D.lead_time.meta_p85, y1: D.lead_time.meta_p85,
+        line: { color: '#66bb6a', width: 2, dash: 'dash' } }],
+    }, CONFIG);
+  }
+
+  // D4 — Bugs abertos por analista
+  const bugAnalistas = Object.keys(dd.bugs_por_analista).sort((a,b) => dd.bugs_por_analista[b].qtd - dd.bugs_por_analista[a].qtd);
+  if (bugAnalistas.length) {
+    const prios = ['Critical','Major','Normal','Minor'];
+    const prioCores = { Critical: '#ef5350', Major: '#ffa726', Normal: '#4fc3f7', Minor: '#66bb6a' };
+    const bugTraces = prios.map(p => ({
+      y: bugAnalistas, x: bugAnalistas.map(a => (dd.bugs_por_analista[a].prioridades || {})[p] || 0),
+      type: 'bar', orientation: 'h', name: p,
+      marker: { color: prioCores[p] || '#888', cornerradius: 3 },
+    }));
+    Plotly.newPlot('chart-dd-bugs-analista', bugTraces, {
+      ...LAYOUT_BASE, barmode: 'stack', height: Math.max(300, bugAnalistas.length * 30),
+      margin: { ...LAYOUT_BASE.margin, l: 140 },
+    }, CONFIG);
+  }
+
+  // D5 — Backlog aging (>60 dias) por analista
+  const blAnalistas = Object.keys(dd.backlog_aging).sort((a,b) => dd.backlog_aging[b].qtd - dd.backlog_aging[a].qtd);
+  if (blAnalistas.length) {
+    Plotly.newPlot('chart-dd-backlog-aging', [
+      { y: blAnalistas, x: blAnalistas.map(a => dd.backlog_aging[a].qtd), type: 'bar', orientation: 'h',
+         name: 'Tickets > 60 dias', marker: { color: '#ffa726', cornerradius: 4 },
+         text: blAnalistas.map(a => dd.backlog_aging[a].qtd + ' (méd ' + dd.backlog_aging[a].media_dias + 'd)'),
+         textposition: 'outside', textfont: { color: '#374151', size: 10 },
+         hovertemplate: '%{y}<br>%{x} tickets > 60 dias<br>Máx: ' +
+           blAnalistas.map(a => dd.backlog_aging[a].max_dias + 'd').join(', ') + '<extra></extra>' },
+    ], { ...LAYOUT_BASE, height: Math.max(300, blAnalistas.length * 30),
+      margin: { ...LAYOUT_BASE.margin, l: 140 } }, CONFIG);
+  } else {
+    document.getElementById('chart-dd-backlog-aging').innerHTML = '<p style="color:#66bb6a;padding:40px;text-align:center">✅ Nenhum ticket com mais de 60 dias</p>';
+  }
+
+  // D6 — Acurácia por analista (stacked: Dentro / Sub / Super)
+  const acAnalistas = Object.keys(dd.acuracia_por_analista).sort((a,b) =>
+    dd.acuracia_por_analista[a].dentro_pct - dd.acuracia_por_analista[b].dentro_pct);
+  if (acAnalistas.length) {
+    Plotly.newPlot('chart-dd-acuracia-analista', [
+      { y: acAnalistas, x: acAnalistas.map(a => dd.acuracia_por_analista[a].dentro), type: 'bar', orientation: 'h',
+         name: 'Dentro', marker: { color: '#66bb6a' } },
+      { y: acAnalistas, x: acAnalistas.map(a => dd.acuracia_por_analista[a].super), type: 'bar', orientation: 'h',
+         name: 'Superestimado', marker: { color: '#4fc3f7' } },
+      { y: acAnalistas, x: acAnalistas.map(a => dd.acuracia_por_analista[a].sub), type: 'bar', orientation: 'h',
+         name: 'Subestimado', marker: { color: '#ef5350' } },
+    ], { ...LAYOUT_BASE, barmode: 'stack', height: Math.max(300, acAnalistas.length * 30),
+      margin: { ...LAYOUT_BASE.margin, l: 140 },
+      annotations: acAnalistas.map((a, i) => ({ x: dd.acuracia_por_analista[a].total + 0.5, y: a,
+        text: dd.acuracia_por_analista[a].dentro_pct + '%', showarrow: false,
+        font: { size: 10, color: dd.acuracia_por_analista[a].dentro_pct >= 70 ? '#66bb6a' : '#ef5350' } })),
+    }, CONFIG);
+  }
+
+  // D7 — Eficiência por analista (barras horizontais com cores)
+  const efAnalistas = Object.keys(dd.eficiencia_por_analista).sort((a,b) =>
+    dd.eficiencia_por_analista[a].media - dd.eficiencia_por_analista[b].media);
+  if (efAnalistas.length) {
+    const efCores = efAnalistas.map(a => {
+      const m = dd.eficiencia_por_analista[a].media;
+      return m >= 30 ? '#66bb6a' : m >= 15 ? '#ffa726' : '#ef5350';
+    });
+    Plotly.newPlot('chart-dd-eficiencia-analista', [
+      { y: efAnalistas, x: efAnalistas.map(a => dd.eficiencia_por_analista[a].media), type: 'bar', orientation: 'h',
+         name: 'Eficiência Média %', marker: { color: efCores, cornerradius: 4 },
+         text: efAnalistas.map(a => dd.eficiencia_por_analista[a].media + '% (' + dd.eficiencia_por_analista[a].qtd + ' tickets)'),
+         textposition: 'outside', textfont: { color: '#374151', size: 10 },
+         hovertemplate: '%{y}<br>Média: %{x}%<br>Mediana: ' +
+           efAnalistas.map(a => dd.eficiencia_por_analista[a].mediana + '%').join(', ') + '<extra></extra>' },
+    ], { ...LAYOUT_BASE, height: Math.max(300, efAnalistas.length * 30),
+      margin: { ...LAYOUT_BASE.margin, l: 140 },
+      shapes: [{ type: 'line', y0: -0.5, y1: efAnalistas.length - 0.5,
+        x0: 30, x1: 30, line: { color: '#66bb6a', width: 2, dash: 'dash' } }],
+    }, CONFIG);
+  }
+
+  // D8 — Tabela piores SLA
+  const elSla = document.getElementById('tabela-dd-sla');
+  if (dd.sla_piores.length) {
+    let html = '<table><thead><tr><th>ID</th><th>Resumo</th><th>Categoria</th><th>Prioridade</th><th>Horas Resolução</th></tr></thead><tbody>';
+    dd.sla_piores.forEach(r => {
+      const hClass = r['Horas Resolução'] > 96 ? 'badge-danger' : r['Horas Resolução'] > 48 ? 'badge-warn' : '';
+      html += `<tr><td>${r.ID}</td><td>${r.Resumo || ''}</td><td>${r.Categoria}</td><td>${r.Prioridade || ''}</td>`;
+      html += `<td>${hClass ? '<span class="'+hClass+'">'+r['Horas Resolução']+'h</span>' : r['Horas Resolução']+'h'}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    elSla.innerHTML = html;
+  } else {
+    elSla.innerHTML = '<p style="color:#66bb6a;padding:20px;text-align:center">✅ SLA dentro do esperado</p>';
+  }
+
+  // D9 — Tabela gargalos (eficiência < 20%)
+  const elEf = document.getElementById('tabela-dd-eficiencia');
+  if (dd.eficiencia_piores.length) {
+    let html = '<table><thead><tr><th>ID</th><th>Categoria</th><th>Analista</th><th>Lead Time (h)</th><th>Trabalho Ativo (h)</th><th>Eficiência %</th></tr></thead><tbody>';
+    dd.eficiencia_piores.forEach(r => {
+      const efClass = r['Eficiência %'] < 5 ? 'badge-danger' : r['Eficiência %'] < 15 ? 'badge-warn' : '';
+      html += `<tr><td>${r.ID}</td><td>${r.Categoria}</td><td>${r.Analista || ''}</td>`;
+      html += `<td>${r['Lead Time (h)']}</td><td>${r['Trabalho Ativo (h)']}</td>`;
+      html += `<td>${efClass ? '<span class="'+efClass+'">'+r['Eficiência %']+'%</span>' : r['Eficiência %']+'%'}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    elEf.innerHTML = html;
+  } else {
+    elEf.innerHTML = '<p style="color:#66bb6a;padding:20px;text-align:center">✅ Todos os tickets com boa eficiência</p>';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+renderKPIs();
+plotVazao();
+plotLeadTime();
+plotCFD();
+plotVazaoCat();
+plotHorasCat();
+plotLTCat();
+plotTaxaDefeitos();
+plotBugs();
+plotAcuracia();
+plotSLA();
+plotCarga();
+plotHorasAnalista();
+renderBugsTable();
+renderBacklogTable();
+renderResumo();
+renderAlertas();
+renderPPR();
+renderDiagnostico();
+renderAppGestor();
+renderMixProdutos();
+renderBIEstrategico();
+renderCustos();
+</script>
+</body>
+</html>

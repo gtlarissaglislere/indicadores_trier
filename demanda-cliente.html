@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CH-31 · Demanda por Cliente & Categoria — Connect Hub</title>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+<style>
+  :root {
+    --bg: #f0f2f5; --panel: #ffffff; --panel2: #f8fafc;
+    --text: #374151; --text-muted: #6b7280; --title: #111827;
+    --accent: #f59e0b; --accent-bg: #f59e0b14;
+    --ok: #16a34a; --ok-bg: rgba(22,163,74,0.08);
+    --warn: #d97706; --warn-bg: rgba(217,119,6,0.08);
+    --danger: #dc2626; --danger-bg: rgba(220,38,38,0.08);
+    --border: #e5e7eb; --shadow: 0 1px 3px rgba(0,0,0,0.06);
+    --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,-apple-system,sans-serif; line-height:1.5; }
+
+  /* ── Header ── */
+  .ch-header {
+    background:linear-gradient(135deg,#92400e 0%,#f59e0b 100%);
+    color:#fff; padding:20px 30px; display:flex; justify-content:space-between; align-items:center;
+    position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,.15);
+  }
+  .ch-header h1 { font-size:1.3em; font-weight:600; display:flex; align-items:center; gap:10px; }
+  .ch-header .code { opacity:.7; font-weight:400; font-size:.85em; }
+  .ch-header .hdr-badges { display:flex; gap:8px; align-items:center; }
+  .ch-header .hdr-badge { background:rgba(255,255,255,.2); padding:4px 14px; border-radius:20px; font-size:.8em;
+    display:inline-flex; align-items:center; gap:5px; }
+
+  /* ── Container ── */
+  .ch-container { max-width:2000px; margin:0 auto; padding:20px; }
+
+  /* ── Badge construção ── */
+  .ch-fictional {
+    display:inline-flex; align-items:center; gap:6px; padding:6px 16px; border-radius:8px;
+    background:var(--warn-bg); color:var(--warn); font-size:.82em; font-weight:600; margin-bottom:16px;
+    border:1px solid rgba(217,119,6,.3);
+  }
+
+  /* ── KPIs ── */
+  .ch-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:24px; }
+  .ch-kpi {
+    background:var(--panel); border-radius:var(--radius); padding:16px 20px;
+    box-shadow:var(--shadow); border-left:4px solid var(--accent);
+    transition:transform .15s, box-shadow .15s; position:relative;
+  }
+  .ch-kpi:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.1); }
+  .ch-kpi .kpi-label { font-size:.72em; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; }
+  .ch-kpi .kpi-value { font-size:1.8em; font-weight:700; color:var(--title); margin:4px 0; }
+  .ch-kpi .kpi-meta { font-size:.72em; color:var(--text-muted); display:flex; align-items:center; gap:4px; }
+  .ch-kpi.ok { border-left-color:var(--ok); }
+  .ch-kpi.warn { border-left-color:var(--warn); }
+  .ch-kpi.danger { border-left-color:var(--danger); }
+
+  .meta-badge {
+    display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:10px;
+    font-size:.72em; font-weight:600;
+  }
+  .meta-badge.badge-ok { background:var(--ok-bg); color:var(--ok); }
+  .meta-badge.badge-warn { background:var(--warn-bg); color:var(--warn); }
+  .meta-badge.badge-danger { background:var(--danger-bg); color:var(--danger); }
+
+  /* ── Charts grid ── */
+  .ch-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-bottom:24px; }
+  .ch-card {
+    background:var(--panel); border-radius:var(--radius); padding:20px;
+    box-shadow:var(--shadow); position:relative;
+  }
+  .ch-card h3 {
+    font-size:.95em; color:var(--title); margin-bottom:12px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .ch-card h3 i { color:var(--accent); }
+  .ch-card .ch-card-actions {
+    position:absolute; top:14px; right:14px; display:flex; gap:6px;
+  }
+  .ch-chart { width:100%; min-height:350px; }
+  .ch-full { grid-column:1/-1; }
+
+  /* ── Help button ── */
+  .ch-help-btn {
+    width:22px; height:22px; border-radius:50%; border:1.5px solid var(--border);
+    background:var(--panel); color:var(--text-muted); font-size:.7em; font-weight:700;
+    cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    transition:all .15s; flex-shrink:0;
+  }
+  .ch-help-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  /* ── Insight button (per chart) ── */
+  .ch-insight-btn {
+    width:28px; height:28px; border-radius:50%; border:1.5px solid var(--border);
+    background:var(--panel); color:var(--warn); font-size:.9em;
+    cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    transition:all .15s; position:relative;
+  }
+  .ch-insight-btn:hover { background:var(--warn-bg); border-color:var(--warn); }
+  .ch-insight-btn.has-critical { color:var(--danger); }
+  .ch-insight-btn.has-critical:hover { background:var(--danger-bg); border-color:var(--danger); }
+  .ch-insight-btn .badge-count {
+    position:absolute; top:-4px; right:-4px; width:16px; height:16px; border-radius:50%;
+    background:var(--danger); color:#fff; font-size:.6em; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ch-insight-btn:disabled { opacity:.3; cursor:default; }
+
+  /* ── Modal ── */
+  .ch-modal-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.4);
+    z-index:1000; justify-content:center; align-items:center;
+  }
+  .ch-modal-overlay.active { display:flex; }
+  .ch-modal {
+    background:var(--panel); border-radius:var(--radius); max-width:600px; width:90%;
+    max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2);
+  }
+  .ch-modal-head {
+    padding:16px 20px; border-bottom:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .ch-modal-head h4 { font-size:1em; color:var(--title); display:flex; align-items:center; gap:8px; }
+  .ch-modal-close {
+    width:28px; height:28px; border-radius:50%; border:none; background:var(--bg);
+    color:var(--text-muted); font-size:1.1em; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .ch-modal-close:hover { background:var(--danger-bg); color:var(--danger); }
+  .ch-modal-body { padding:20px; }
+  .ch-modal-body .help-section { margin-bottom:14px; }
+  .ch-modal-body .help-section h5 {
+    font-size:.8em; text-transform:uppercase; letter-spacing:.5px; color:var(--accent);
+    margin-bottom:6px; display:flex; align-items:center; gap:6px;
+  }
+  .ch-modal-body .help-section p { font-size:.88em; color:var(--text); line-height:1.6; }
+
+  /* ── Insights panel (page-level, collapsible) ── */
+  .ch-insights-panel { margin-bottom:24px; }
+  .ch-insights-toggle {
+    display:flex; align-items:center; gap:10px; padding:12px 18px;
+    background:var(--panel); border-radius:var(--radius); cursor:pointer;
+    box-shadow:var(--shadow); border:none; width:100%; text-align:left;
+    font-family:inherit; font-size:.88em; color:var(--title);
+    transition:background .15s;
+  }
+  .ch-insights-toggle:hover { background:var(--panel2); }
+  .ch-insights-toggle .toggle-icon { transition:transform .2s; font-size:1.1em; }
+  .ch-insights-toggle .toggle-icon.open { transform:rotate(180deg); }
+  .ch-insights-summary { display:flex; gap:10px; margin-left:auto; }
+  .ch-insights-summary .sum-badge {
+    padding:2px 10px; border-radius:10px; font-size:.78em; font-weight:600;
+  }
+  .ch-insights-summary .sum-critical { background:var(--danger-bg); color:var(--danger); }
+  .ch-insights-summary .sum-warning { background:var(--warn-bg); color:var(--warn); }
+  .ch-insights-summary .sum-info { background:rgba(37,99,235,.08); color:var(--accent); }
+
+  .ch-insights-list {
+    overflow:hidden; transition:max-height .3s ease; max-height:0;
+    margin-top:8px;
+  }
+  .ch-insights-list.open { max-height:2000px; }
+
+  .ch-insight {
+    display:flex; align-items:flex-start; gap:12px; padding:12px 18px; border-radius:8px;
+    margin-bottom:6px; border-left:4px solid transparent; font-size:.88em;
+  }
+  .ch-insight.critical { background:var(--danger-bg); border-left-color:var(--danger); }
+  .ch-insight.warning { background:var(--warn-bg); border-left-color:var(--warn); }
+  .ch-insight.info { background:rgba(37,99,235,.06); border-left-color:var(--accent); }
+  .ch-insight .ins-icon { font-size:1.2em; margin-top:1px; flex-shrink:0; }
+  .ch-insight .ins-body { flex:1; }
+  .ch-insight .ins-body strong { display:block; font-size:.9em; color:var(--title); }
+  .ch-insight .ins-body p { margin:3px 0 0; color:var(--text); }
+  .ch-insight .ins-action { font-size:.85em; color:var(--accent); font-style:italic; margin-top:4px; }
+
+  /* ── Tables ── */
+  .ch-table { width:100%; border-collapse:collapse; font-size:.82em; }
+  .ch-table th { background:var(--panel2); padding:10px 12px; text-align:left; border-bottom:2px solid var(--border); color:var(--text-muted); font-weight:600; }
+  .ch-table td { padding:8px 12px; border-bottom:1px solid var(--border); }
+  .ch-table tr:hover { background:var(--panel2); }
+
+  /* ── Footer ── */
+  .ch-footer {
+    text-align:center; padding:20px; font-size:.78em; color:var(--text-muted);
+    border-top:1px solid var(--border); margin-top:10px;
+  }
+  .ch-footer a { color:var(--accent); text-decoration:none; }
+
+  /* ── Responsive ── */
+  @media (max-width:1024px) {
+    .ch-grid { grid-template-columns:1fr; }
+    .ch-kpi-grid { grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+  }
+  @media (max-width:640px) {
+    .ch-header { padding:14px 16px; }
+    .ch-header h1 { font-size:1.1em; }
+    .ch-container { padding:12px; }
+    .ch-kpi .kpi-value { font-size:1.4em; }
+  }
+</style>
+<script>
+window.__CH_HELPS = {"Throughput": {"desc": "Quantidade de chamados resolvidos por período.", "look": "Tendência crescente indica melhoria de capacidade de entrega. Quedas bruscas podem indicar bloqueios ou feriados.", "rec": "Manter estável ou crescente. Se cair >20%, investigar causas.", "solves": "Identifica gargalos de produtividade e capacidade da equipe."}, "Vazão por Categoria": {"desc": "Throughput segmentado por tipo de ticket (Atendimento, Bug, Epic, etc.).", "look": "Mudanças na composição indicam shifts na demanda.", "rec": "Se bugs crescem proporcionalmente, priorizar qualidade.", "solves": "Entende a natureza da demanda para melhor alocação."}, "Horas por Categoria": {"desc": "Distribuição das horas trabalhadas por tipo de ticket (Bug, Epic, etc.).", "look": "Se bugs consomem >30% das horas, há problema de qualidade.", "rec": "Investir em prevenção (testes, QA) para reduzir horas em bugs.", "solves": "Mostra onde o esforço da equipe está sendo consumido."}, "Carga por Analista": {"desc": "Distribuição de tickets por analista, segmentado por estado.", "look": "Desbalanceamento indica sobrecarga em membros específicos.", "rec": "Redistribuir carga se variação > 30% entre analistas.", "solves": "Previne burnout e melhora distribuição equitativa do trabalho."}};
+window.__CH_DATA = {"insights":[]};
+</script>
+</head>
+<body>
+<header class="ch-header">
+  <h1><i class="bi bi-people"></i> Demanda por Cliente & Categoria <span class="code">CH-31</span></h1>
+  <div class="hdr-badges">
+    <span class="hdr-badge"><i class="bi bi-gear"></i> Operação</span>
+    <span class="hdr-badge"><i class="bi bi-clock"></i> 08/05/2026 09:28</span>
+  </div>
+</header>
+<div class="ch-container">
+
+
+  <div class="ch-insights-panel" id="chInsightsPanel"></div>
+  <div class="ch-kpi-grid" id="kpiGrid"></div>
+
+  <div class="ch-grid">
+    <div class="ch-card ch-full" id="cardVazao">
+      <h3><i class="bi bi-graph-up"></i> Vazão Mensal (Chamados Resolvidos)</h3>
+      <div class="ch-chart" id="chartVazao"></div>
+    </div>
+    <div class="ch-card" id="cardVazaoCat">
+      <h3><i class="bi bi-layers"></i> Vazão por Categoria (Evolução)</h3>
+      <div class="ch-chart" id="chartVazaoCat" style="height:380px"></div>
+    </div>
+    <div class="ch-card" id="cardHorasCat">
+      <h3><i class="bi bi-pie-chart"></i> Horas por Categoria</h3>
+      <div class="ch-chart" id="chartHorasCat"></div>
+    </div>
+    <div class="ch-card ch-full" id="cardTreemap">
+      <h3><i class="bi bi-grid-3x3-gap"></i> Distribuição Analista × Categoria</h3>
+      <div class="ch-chart" id="chartTreemap" style="height:450px"></div>
+    </div>
+  </div>
+
+</div>
+<footer class="ch-footer">
+  Demanda por Cliente & Categoria — Connect Hub · Trier Sistemas
+</footer>
+
+<script>
+const D = {"gerado_em": "08/05/2026 09:28", "metas": {"SLA por Cliente": 85.0}, "insights": [], "vazao_cat": {"Atendimento": {"Out/2025": 14, "Nov/2025": 120, "Dez/2025": 102, "Jan/2026": 163, "Fev/2026": 171, "Mar/2026": 229, "Abr/2026": 185, "Mai/2026": 107}, "Bug": {"Out/2025": 12, "Nov/2025": 7, "Dez/2025": 13, "Jan/2026": 8, "Fev/2026": 15, "Mar/2026": 24, "Abr/2026": 15, "Mai/2026": 3}, "Implantação": {"Out/2025": 2, "Nov/2025": 177, "Dez/2025": 33, "Jan/2026": 61, "Fev/2026": 56, "Mar/2026": 84, "Abr/2026": 107, "Mai/2026": 3}, "Melhoria": {"Out/2025": 28, "Nov/2025": 45, "Dez/2025": 18, "Jan/2026": 45, "Fev/2026": 87, "Mar/2026": 50, "Abr/2026": 79, "Mai/2026": 20}, "Customização": {"Nov/2025": 1, "Mai/2026": 1}, "Reunião": {"Nov/2025": 14, "Dez/2025": 18, "Jan/2026": 35, "Fev/2026": 31, "Mar/2026": 56, "Abr/2026": 47, "Mai/2026": 20}, "Treinamento": {"Nov/2025": 2, "Dez/2025": 8, "Jan/2026": 4, "Fev/2026": 6, "Mar/2026": 15, "Abr/2026": 3, "Mai/2026": 8}}, "periodos": ["Out/2025", "Nov/2025", "Dez/2025", "Jan/2026", "Fev/2026", "Mar/2026", "Abr/2026", "Mai/2026"], "horas_cat": {"Atendimento": 2380.35, "Bug": 908.03, "Customização": 5.0, "Implantação": 304.58, "Melhoria": 7328.95, "Reunião": 401.53, "Treinamento": 221.23}, "clientes": [], "analista_cat": [{"analista": "Alex Cardoso de Jesus", "categoria": "Reunião", "qtd": 143}, {"analista": "Alex Cardoso de Jesus", "categoria": "Melhoria", "qtd": 50}, {"analista": "Alex Cardoso de Jesus", "categoria": "Atendimento", "qtd": 185}, {"analista": "Alex Cardoso de Jesus", "categoria": "Bug", "qtd": 2}, {"analista": "Alex Cardoso de Jesus", "categoria": "Implantação", "qtd": 31}, {"analista": "Alex Cardoso de Jesus", "categoria": "Treinamento", "qtd": 15}, {"analista": "Arlei Corrêa Zomer", "categoria": "Melhoria", "qtd": 40}, {"analista": "Arlei Corrêa Zomer", "categoria": "Reunião", "qtd": 28}, {"analista": "Arlei Corrêa Zomer", "categoria": "Bug", "qtd": 12}, {"analista": "Arlei Corrêa Zomer", "categoria": "Atendimento", "qtd": 50}, {"analista": "Arlei Corrêa Zomer", "categoria": "Implantação", "qtd": 2}, {"analista": "Davi Beckhauser", "categoria": "Melhoria", "qtd": 2}, {"analista": "Davi Beckhauser", "categoria": "Bug", "qtd": 1}, {"analista": "Davi Beckhauser", "categoria": "Treinamento", "qtd": 5}, {"analista": "Davi Beckhauser", "categoria": "Atendimento", "qtd": 7}, {"analista": "Davi Beckhauser", "categoria": "Reunião", "qtd": 3}, {"analista": "Evandro Bittencourt Fernandes", "categoria": "Treinamento", "qtd": 16}, {"analista": "Evandro Bittencourt Fernandes", "categoria": "Reunião", "qtd": 17}, {"analista": "Evandro Bittencourt Fernandes", "categoria": "Atendimento", "qtd": 469}, {"analista": "Evandro Bittencourt Fernandes", "categoria": "Implantação", "qtd": 430}, {"analista": "Evandro Bittencourt Fernandes", "categoria": "Melhoria", "qtd": 12}, {"analista": "Evandro Bittencourt Fernandes", "categoria": "Bug", "qtd": 3}, {"analista": "Evandro Bittencourt Fernandes", "categoria": "Customização", "qtd": 1}, {"analista": "Gabriel Rosalino", "categoria": "Bug", "qtd": 22}, {"analista": "Gabriel Rosalino", "categoria": "Reunião", "qtd": 1}, {"analista": "Gabriel Rosalino", "categoria": "Melhoria", "qtd": 37}, {"analista": "Gabriel Rosalino", "categoria": "Atendimento", "qtd": 6}, {"analista": "Gabriel Rosalino", "categoria": "Implantação", "qtd": 1}, {"analista": "Heloisa Martins Tavares", "categoria": "Atendimento", "qtd": 214}, {"analista": "Heloisa Martins Tavares", "categoria": "Melhoria", "qtd": 13}, {"analista": "Heloisa Martins Tavares", "categoria": "Reunião", "qtd": 3}, {"analista": "Heloisa Martins Tavares", "categoria": "Treinamento", "qtd": 3}, {"analista": "Heloisa Martins Tavares", "categoria": "Bug", "qtd": 20}, {"analista": "Larissa Vertuan Glislere", "categoria": "Apresentação", "qtd": 1}, {"analista": "Larissa Vertuan Glislere", "categoria": "Melhoria", "qtd": 1}, {"analista": "Luiz Henrique Mendes", "categoria": "Atendimento", "qtd": 42}, {"analista": "Luiz Henrique Mendes", "categoria": "Reunião", "qtd": 3}, {"analista": "Luiz Henrique Mendes", "categoria": "Treinamento", "qtd": 4}, {"analista": "Luiz Henrique Mendes", "categoria": "Melhoria", "qtd": 1}, {"analista": "Michele de Barros Santos", "categoria": "Melhoria", "qtd": 142}, {"analista": "Michele de Barros Santos", "categoria": "Reunião", "qtd": 1}, {"analista": "Michele de Barros Santos", "categoria": "Bug", "qtd": 22}, {"analista": "Michele de Barros Santos", "categoria": "Atendimento", "qtd": 14}, {"analista": "Murilo Rodrigues Luciano", "categoria": "Melhoria", "qtd": 89}, {"analista": "Murilo Rodrigues Luciano", "categoria": "Reunião", "qtd": 33}, {"analista": "Murilo Rodrigues Luciano", "categoria": "Atendimento", "qtd": 82}, {"analista": "Murilo Rodrigues Luciano", "categoria": "Customização", "qtd": 1}, {"analista": "Murilo Rodrigues Luciano", "categoria": "Implantação", "qtd": 81}, {"analista": "Murilo Rodrigues Luciano", "categoria": "Bug", "qtd": 20}, {"analista": "Murilo Rodrigues Luciano", "categoria": "Treinamento", "qtd": 6}, {"analista": "Não atribuído", "categoria": "Bug", "qtd": 6}, {"analista": "Não atribuído", "categoria": "Reunião", "qtd": 5}, {"analista": "Não atribuído", "categoria": "Melhoria", "qtd": 17}, {"analista": "Não atribuído", "categoria": "Atendimento", "qtd": 9}, {"analista": "Paulo Eduardo Saraiva", "categoria": "Atendimento", "qtd": 105}, {"analista": "Paulo Eduardo Saraiva", "categoria": "Reunião", "qtd": 7}, {"analista": "Paulo Eduardo Saraiva", "categoria": "Melhoria", "qtd": 20}, {"analista": "Paulo Eduardo Saraiva", "categoria": "Implantação", "qtd": 10}, {"analista": "Paulo Eduardo Saraiva", "categoria": "Bug", "qtd": 13}, {"analista": "Paulo Eduardo Saraiva", "categoria": "Treinamento", "qtd": 2}, {"analista": "Thiago Julio", "categoria": "Melhoria", "qtd": 43}, {"analista": "Thiago Julio", "categoria": "Implantação", "qtd": 4}, {"analista": "Thiago Julio", "categoria": "Atendimento", "qtd": 6}, {"analista": "Thiago Julio", "categoria": "Bug", "qtd": 8}, {"analista": "Thiago Julio", "categoria": "Treinamento", "qtd": 1}, {"analista": "Wanessa de Oliveira Guedes", "categoria": "Reunião", "qtd": 1}, {"analista": "Wanessa de Oliveira Guedes", "categoria": "Melhoria", "qtd": 65}, {"analista": "Wanessa de Oliveira Guedes", "categoria": "Atendimento", "qtd": 17}, {"analista": "Wanessa de Oliveira Guedes", "categoria": "Bug", "qtd": 11}], "vazao_geral": [{"periodo": "Out/2025", "resolvidos": 56}, {"periodo": "Nov/2025", "resolvidos": 366}, {"periodo": "Dez/2025", "resolvidos": 192}, {"periodo": "Jan/2026", "resolvidos": 316}, {"periodo": "Fev/2026", "resolvidos": 366}, {"periodo": "Mar/2026", "resolvidos": 458}, {"periodo": "Abr/2026", "resolvidos": 436}, {"periodo": "Mai/2026", "resolvidos": 162}], "total_chamados": 2352, "total_horas": 11549.7};
+const cats_colors = {'Atendimento':'#0ea5e9','Bug':'#dc2626','Implantação':'#059669',
+  'Melhoria':'#f59e0b','Treinamento':'#ec4899','Customização':'#6b7280','Reunião':'#2563eb'};
+
+// KPIs
+(function(){
+  const g=document.getElementById('kpiGrid');
+  const hc=D.horas_cat||{};
+  const cats=Object.keys(hc).length;
+  const topCat=Object.entries(hc).sort((a,b)=>b[1]-a[1])[0];
+  const kpis=[
+    {label:'Total Resolvidos',value:D.total_chamados.toLocaleString('pt-BR')},
+    {label:'Total Horas',value:D.total_horas.toLocaleString('pt-BR',{minimumFractionDigits:1})},
+    {label:'Categorias',value:cats},
+    {label:'Maior Categoria',value:topCat?topCat[0]:'-'},
+  ];
+  kpis.forEach(k=>{
+    g.innerHTML+='<div class="ch-kpi"><div class="kpi-label">'+k.label+'</div><div class="kpi-value">'+k.value+'</div></div>';
+  });
+})();
+
+// Vazão Mensal bar
+(function(){
+  const v=D.vazao_geral||[];
+  if(!v.length) return;
+  Plotly.newPlot('chartVazao',[{
+    type:'bar',x:v.map(x=>x.periodo),y:v.map(x=>x.resolvidos),
+    marker:{color:'#f59e0b'},name:'Resolvidos',
+    text:v.map(x=>x.resolvidos),textposition:'outside'
+  }],{...baseLayout,yaxis:{...baseLayout.yaxis,title:'Chamados'}}, plotCfg);
+})();
+
+// Vazão por Categoria stacked area
+(function(){
+  const vc=D.vazao_cat||{};
+  const per=D.periodos||[];
+  if(!per.length) return;
+  const traces=Object.keys(vc).map(cat=>{
+    return {
+      type:'scatter',mode:'lines',stackgroup:'one',name:cat,
+      x:per,y:per.map(p=>vc[cat][p]||0),
+      line:{color:cats_colors[cat]||'#6b7280'},
+      fillcolor: (cats_colors[cat]||'#6b7280')+'40'
+    };
+  });
+  Plotly.newPlot('chartVazaoCat',traces,{...baseLayout,yaxis:{title:'Quantidade'}}, plotCfg);
+})();
+
+// Horas por Categoria pie
+(function(){
+  const hc=D.horas_cat||{};
+  const items=Object.entries(hc).sort((a,b)=>b[1]-a[1]);
+  if(!items.length) return;
+  Plotly.newPlot('chartHorasCat',[{
+    type:'pie',labels:items.map(e=>e[0]),values:items.map(e=>e[1]),hole:.4,
+    marker:{colors:items.map(e=>cats_colors[e[0]]||'#6b7280')},
+    textinfo:'label+percent'
+  }],{...baseLayout,margin:{t:10,b:10,l:10,r:10}}, plotCfg);
+})();
+
+// Treemap Analista × Categoria
+(function(){
+  const ac=D.analista_cat||[];
+  if(!ac.length) return;
+  const labels=['Equipe'], parents=[''], values=[0];
+  const analistas=[...new Set(ac.map(x=>x.analista))];
+  analistas.forEach(a=>{
+    labels.push(a); parents.push('Equipe'); values.push(0);
+  });
+  ac.forEach(item=>{
+    labels.push(item.categoria+' ('+item.analista.split(' ')[0]+')');
+    parents.push(item.analista);
+    values.push(item.qtd);
+  });
+  Plotly.newPlot('chartTreemap',[{
+    type:'treemap',labels,parents,values,
+    marker:{colorscale:'Viridis'},textinfo:'label+value',
+    branchvalues:'total'
+  }],{...baseLayout,margin:{t:10,b:10,l:10,r:10}}, plotCfg);
+})();
+</script>
+
+<script>
+
+/* ── Connect Hub — JS Utilities ── */
+const baseLayout = {paper_bgcolor:'transparent', plot_bgcolor:'transparent',
+  margin:{t:10, b:50, l:60, r:20},
+  font:{family:'Segoe UI, system-ui, sans-serif', size:12, color:'#374151'},
+  xaxis:{gridcolor:'#e5e7eb', color:'#374151'},
+  yaxis:{gridcolor:'#e5e7eb', color:'#374151'}};
+const plotCfg = {responsive:true, displayModeBar:false};
+
+const HELPS = window.__CH_HELPS || {};
+const INSIGHTS = window.__CH_DATA ? (window.__CH_DATA.insights || []) : [];
+
+/* Meta status */
+function metaStatus(value, target, direction) {
+  if (target == null || value == null || isNaN(value)) return null;
+  const v = parseFloat(value);
+  const t = parseFloat(target);
+  if (direction === 'min') {
+    if (v <= t) return {label:'Na meta', cls:'badge-ok', icon:'✅'};
+    if (v <= t * 1.2) return {label:'Próximo', cls:'badge-warn', icon:'⚠️'};
+    return {label:'Acima', cls:'badge-danger', icon:'🔴'};
+  } else {
+    if (v >= t) return {label:'Na meta', cls:'badge-ok', icon:'✅'};
+    if (v >= t * 0.8) return {label:'Próximo', cls:'badge-warn', icon:'⚠️'};
+    return {label:'Abaixo', cls:'badge-danger', icon:'🔴'};
+  }
+}
+
+/* Render meta badge HTML */
+function metaBadgeHTML(value, target, direction, unit) {
+  const s = metaStatus(value, target, direction);
+  if (!s) return '';
+  const u = unit ? ' ' + unit : '';
+  return '<div class="kpi-meta"><span class="meta-badge ' + s.cls + '">' + s.icon + ' ' + s.label +
+    '</span> Meta: ' + target + u + '</div>';
+}
+
+/* Modal system */
+function showModal(title, bodyHTML, icon) {
+  let overlay = document.getElementById('chModalOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'chModalOverlay';
+    overlay.className = 'ch-modal-overlay';
+    overlay.innerHTML = '<div class="ch-modal"><div class="ch-modal-head"><h4></h4>' +
+      '<button class="ch-modal-close" onclick="closeModal()">✕</button></div>' +
+      '<div class="ch-modal-body"></div></div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+  }
+  const iconHTML = icon ? '<i class="bi ' + icon + '"></i> ' : '';
+  overlay.querySelector('h4').innerHTML = iconHTML + title;
+  overlay.querySelector('.ch-modal-body').innerHTML = bodyHTML;
+  overlay.classList.add('active');
+  document.addEventListener('keydown', _escModal);
+}
+function closeModal() {
+  const o = document.getElementById('chModalOverlay');
+  if (o) o.classList.remove('active');
+  document.removeEventListener('keydown', _escModal);
+}
+function _escModal(e) { if (e.key === 'Escape') closeModal(); }
+
+/* Help button */
+function showHelp(indicatorName) {
+  const h = HELPS[indicatorName];
+  if (!h) { showModal(indicatorName, '<p>Sem informação disponível.</p>', 'bi-question-circle'); return; }
+  let html = '';
+  if (h.desc) html += '<div class="help-section"><h5><i class="bi bi-info-circle"></i> O que é</h5><p>' + h.desc + '</p></div>';
+  if (h.look) html += '<div class="help-section"><h5><i class="bi bi-eye"></i> O que observar</h5><p>' + h.look + '</p></div>';
+  if (h.rec) html += '<div class="help-section"><h5><i class="bi bi-lightbulb"></i> Recomendação</h5><p>' + h.rec + '</p></div>';
+  if (h.solves) html += '<div class="help-section"><h5><i class="bi bi-check2-circle"></i> Que problema resolve</h5><p>' + h.solves + '</p></div>';
+  showModal(indicatorName, html, 'bi-question-circle');
+}
+
+/* Chart insight button */
+function showChartInsights(indicatorNames) {
+  const names = Array.isArray(indicatorNames) ? indicatorNames : [indicatorNames];
+  const matching = INSIGHTS.filter(i => names.some(n =>
+    i.indicator_name && i.indicator_name.toLowerCase().includes(n.toLowerCase())
+  ));
+  if (!matching.length) {
+    showModal('Insights', '<p style="color:var(--text-muted);text-align:center;padding:20px">Nenhum insight para este gráfico.</p>', 'bi-lightbulb');
+    return;
+  }
+  const icons = {atencao:'⚠️', positivo:'✅', acao:'💡'};
+  let html = '';
+  matching.forEach(i => {
+    const action = i.suggested_action ? '<div class="ins-action">→ ' + i.suggested_action + '</div>' : '';
+    html += '<div class="ch-insight ' + i.severity + '"><div class="ins-icon">' +
+      (icons[i.insight_type] || 'ℹ️') + '</div><div class="ins-body"><strong>' + i.indicator_name +
+      '</strong><p>' + i.message + '</p>' + action + '</div></div>';
+  });
+  showModal('Insights do Gráfico', html, 'bi-lightbulb');
+}
+
+/* Insights panel (collapsible) */
+function renderInsightsPanel(containerId, insights) {
+  const el = document.getElementById(containerId);
+  if (!el || !insights || !insights.length) return;
+  const crit = insights.filter(i => i.severity === 'critical').length;
+  const warn = insights.filter(i => i.severity === 'warning').length;
+  const info = insights.filter(i => i.severity === 'info').length;
+  const startOpen = insights.length <= 3;
+
+  let summaryBadges = '';
+  if (crit) summaryBadges += '<span class="sum-badge sum-critical">' + crit + ' crítico' + (crit>1?'s':'') + '</span>';
+  if (warn) summaryBadges += '<span class="sum-badge sum-warning">' + warn + ' atenção</span>';
+  if (info) summaryBadges += '<span class="sum-badge sum-info">' + info + ' info</span>';
+
+  const icons = {atencao:'⚠️', positivo:'✅', acao:'💡'};
+  let listHTML = '';
+  // Sort: critical first, then warning, then info
+  const sorted = [...insights].sort((a,b) => {
+    const order = {critical:0, warning:1, info:2};
+    return (order[a.severity]||2) - (order[b.severity]||2);
+  });
+  sorted.forEach(i => {
+    const action = i.suggested_action ? '<div class="ins-action">→ ' + i.suggested_action + '</div>' : '';
+    listHTML += '<div class="ch-insight ' + i.severity + '"><div class="ins-icon">' +
+      (icons[i.insight_type] || 'ℹ️') + '</div><div class="ins-body"><strong>' + i.indicator_name +
+      '</strong><p>' + i.message + '</p>' + action + '</div></div>';
+  });
+
+  el.innerHTML =
+    '<button class="ch-insights-toggle" onclick="toggleInsights(this)">' +
+    '<i class="bi bi-lightbulb" style="color:var(--warn)"></i>' +
+    '<strong>' + insights.length + ' insight' + (insights.length>1?'s':'') + '</strong>' +
+    '<div class="ch-insights-summary">' + summaryBadges + '</div>' +
+    '<span class="toggle-icon' + (startOpen?' open':'') + '">▼</span>' +
+    '</button>' +
+    '<div class="ch-insights-list' + (startOpen?' open':'') + '">' + listHTML + '</div>';
+}
+function toggleInsights(btn) {
+  const list = btn.nextElementSibling;
+  const icon = btn.querySelector('.toggle-icon');
+  list.classList.toggle('open');
+  icon.classList.toggle('open');
+}
+
+/* Attach chart insight button to a card */
+function attachChartInsight(cardEl, indicatorNames) {
+  const names = Array.isArray(indicatorNames) ? indicatorNames : [indicatorNames];
+  const matching = INSIGHTS.filter(i => names.some(n =>
+    i.indicator_name && i.indicator_name.toLowerCase().includes(n.toLowerCase())
+  ));
+  let actions = cardEl.querySelector('.ch-card-actions');
+  if (!actions) {
+    actions = document.createElement('div');
+    actions.className = 'ch-card-actions';
+    cardEl.appendChild(actions);
+  }
+  const btn = document.createElement('button');
+  btn.className = 'ch-insight-btn';
+  if (matching.some(i => i.severity === 'critical')) btn.classList.add('has-critical');
+  btn.innerHTML = '💡' + (matching.length ? '<span class="badge-count">' + matching.length + '</span>' : '');
+  btn.disabled = !matching.length;
+  btn.title = matching.length ? matching.length + ' insight(s)' : 'Sem insights';
+  btn.onclick = function() { showChartInsights(names); };
+  actions.insertBefore(btn, actions.firstChild);
+}
+
+/* Attach help button to a card title */
+function attachHelp(cardEl, indicatorName) {
+  const h3 = cardEl.querySelector('h3');
+  if (!h3 || !HELPS[indicatorName]) return;
+  const btn = document.createElement('button');
+  btn.className = 'ch-help-btn';
+  btn.innerHTML = '?';
+  btn.title = 'O que é ' + indicatorName;
+  btn.onclick = function(e) { e.stopPropagation(); showHelp(indicatorName); };
+  h3.appendChild(btn);
+}
+
+/* Create meta line for Plotly chart */
+function metaLine(periods, metaValue, label) {
+  if (!metaValue || !periods.length) return null;
+  return {type:'scatter', x:periods, y:Array(periods.length).fill(metaValue),
+    mode:'lines', name:label || 'Meta', line:{color:'#dc2626', dash:'dash', width:2},
+    hovertemplate: 'Meta: %{y}<extra></extra>'};
+}
+
+/* Format number Brazilian style */
+function fmtBR(n, decimals) {
+  if (n == null || isNaN(n)) return '—';
+  return Number(n).toLocaleString('pt-BR', {minimumFractionDigits: decimals||0, maximumFractionDigits: decimals||0});
+}
+
+
+/* Auto-attach help and insight buttons */
+(function() {
+  const chartMap = {"cardVazao": ["Throughput"], "cardVazaoCat": ["Vazão por Categoria"], "cardHorasCat": ["Horas por Categoria"], "cardTreemap": ["Carga por Analista"]};
+  Object.entries(chartMap).forEach(([cardId, indicators]) => {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+    if (indicators.length) {
+      attachHelp(card, indicators[0]);
+      attachChartInsight(card, indicators);
+    }
+  });
+  renderInsightsPanel('chInsightsPanel', INSIGHTS);
+})();
+</script>
+</body>
+</html>

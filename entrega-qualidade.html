@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CH-20 · Entrega & Qualidade — Connect Hub</title>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+<style>
+  :root {
+    --bg: #f0f2f5; --panel: #ffffff; --panel2: #f8fafc;
+    --text: #374151; --text-muted: #6b7280; --title: #111827;
+    --accent: #2563eb; --accent-bg: #2563eb14;
+    --ok: #16a34a; --ok-bg: rgba(22,163,74,0.08);
+    --warn: #d97706; --warn-bg: rgba(217,119,6,0.08);
+    --danger: #dc2626; --danger-bg: rgba(220,38,38,0.08);
+    --border: #e5e7eb; --shadow: 0 1px 3px rgba(0,0,0,0.06);
+    --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,-apple-system,sans-serif; line-height:1.5; }
+
+  /* ── Header ── */
+  .ch-header {
+    background:linear-gradient(135deg,#1e40af 0%,#3b82f6 100%);
+    color:#fff; padding:20px 30px; display:flex; justify-content:space-between; align-items:center;
+    position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,.15);
+  }
+  .ch-header h1 { font-size:1.3em; font-weight:600; display:flex; align-items:center; gap:10px; }
+  .ch-header .code { opacity:.7; font-weight:400; font-size:.85em; }
+  .ch-header .hdr-badges { display:flex; gap:8px; align-items:center; }
+  .ch-header .hdr-badge { background:rgba(255,255,255,.2); padding:4px 14px; border-radius:20px; font-size:.8em;
+    display:inline-flex; align-items:center; gap:5px; }
+
+  /* ── Container ── */
+  .ch-container { max-width:2000px; margin:0 auto; padding:20px; }
+
+  /* ── Badge construção ── */
+  .ch-fictional {
+    display:inline-flex; align-items:center; gap:6px; padding:6px 16px; border-radius:8px;
+    background:var(--warn-bg); color:var(--warn); font-size:.82em; font-weight:600; margin-bottom:16px;
+    border:1px solid rgba(217,119,6,.3);
+  }
+
+  /* ── KPIs ── */
+  .ch-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:24px; }
+  .ch-kpi {
+    background:var(--panel); border-radius:var(--radius); padding:16px 20px;
+    box-shadow:var(--shadow); border-left:4px solid var(--accent);
+    transition:transform .15s, box-shadow .15s; position:relative;
+  }
+  .ch-kpi:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.1); }
+  .ch-kpi .kpi-label { font-size:.72em; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; }
+  .ch-kpi .kpi-value { font-size:1.8em; font-weight:700; color:var(--title); margin:4px 0; }
+  .ch-kpi .kpi-meta { font-size:.72em; color:var(--text-muted); display:flex; align-items:center; gap:4px; }
+  .ch-kpi.ok { border-left-color:var(--ok); }
+  .ch-kpi.warn { border-left-color:var(--warn); }
+  .ch-kpi.danger { border-left-color:var(--danger); }
+
+  .meta-badge {
+    display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:10px;
+    font-size:.72em; font-weight:600;
+  }
+  .meta-badge.badge-ok { background:var(--ok-bg); color:var(--ok); }
+  .meta-badge.badge-warn { background:var(--warn-bg); color:var(--warn); }
+  .meta-badge.badge-danger { background:var(--danger-bg); color:var(--danger); }
+
+  /* ── Charts grid ── */
+  .ch-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-bottom:24px; }
+  .ch-card {
+    background:var(--panel); border-radius:var(--radius); padding:20px;
+    box-shadow:var(--shadow); position:relative;
+  }
+  .ch-card h3 {
+    font-size:.95em; color:var(--title); margin-bottom:12px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .ch-card h3 i { color:var(--accent); }
+  .ch-card .ch-card-actions {
+    position:absolute; top:14px; right:14px; display:flex; gap:6px;
+  }
+  .ch-chart { width:100%; min-height:350px; }
+  .ch-full { grid-column:1/-1; }
+
+  /* ── Help button ── */
+  .ch-help-btn {
+    width:22px; height:22px; border-radius:50%; border:1.5px solid var(--border);
+    background:var(--panel); color:var(--text-muted); font-size:.7em; font-weight:700;
+    cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    transition:all .15s; flex-shrink:0;
+  }
+  .ch-help-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  /* ── Insight button (per chart) ── */
+  .ch-insight-btn {
+    width:28px; height:28px; border-radius:50%; border:1.5px solid var(--border);
+    background:var(--panel); color:var(--warn); font-size:.9em;
+    cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    transition:all .15s; position:relative;
+  }
+  .ch-insight-btn:hover { background:var(--warn-bg); border-color:var(--warn); }
+  .ch-insight-btn.has-critical { color:var(--danger); }
+  .ch-insight-btn.has-critical:hover { background:var(--danger-bg); border-color:var(--danger); }
+  .ch-insight-btn .badge-count {
+    position:absolute; top:-4px; right:-4px; width:16px; height:16px; border-radius:50%;
+    background:var(--danger); color:#fff; font-size:.6em; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ch-insight-btn:disabled { opacity:.3; cursor:default; }
+
+  /* ── Modal ── */
+  .ch-modal-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.4);
+    z-index:1000; justify-content:center; align-items:center;
+  }
+  .ch-modal-overlay.active { display:flex; }
+  .ch-modal {
+    background:var(--panel); border-radius:var(--radius); max-width:600px; width:90%;
+    max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2);
+  }
+  .ch-modal-head {
+    padding:16px 20px; border-bottom:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .ch-modal-head h4 { font-size:1em; color:var(--title); display:flex; align-items:center; gap:8px; }
+  .ch-modal-close {
+    width:28px; height:28px; border-radius:50%; border:none; background:var(--bg);
+    color:var(--text-muted); font-size:1.1em; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .ch-modal-close:hover { background:var(--danger-bg); color:var(--danger); }
+  .ch-modal-body { padding:20px; }
+  .ch-modal-body .help-section { margin-bottom:14px; }
+  .ch-modal-body .help-section h5 {
+    font-size:.8em; text-transform:uppercase; letter-spacing:.5px; color:var(--accent);
+    margin-bottom:6px; display:flex; align-items:center; gap:6px;
+  }
+  .ch-modal-body .help-section p { font-size:.88em; color:var(--text); line-height:1.6; }
+
+  /* ── Insights panel (page-level, collapsible) ── */
+  .ch-insights-panel { margin-bottom:24px; }
+  .ch-insights-toggle {
+    display:flex; align-items:center; gap:10px; padding:12px 18px;
+    background:var(--panel); border-radius:var(--radius); cursor:pointer;
+    box-shadow:var(--shadow); border:none; width:100%; text-align:left;
+    font-family:inherit; font-size:.88em; color:var(--title);
+    transition:background .15s;
+  }
+  .ch-insights-toggle:hover { background:var(--panel2); }
+  .ch-insights-toggle .toggle-icon { transition:transform .2s; font-size:1.1em; }
+  .ch-insights-toggle .toggle-icon.open { transform:rotate(180deg); }
+  .ch-insights-summary { display:flex; gap:10px; margin-left:auto; }
+  .ch-insights-summary .sum-badge {
+    padding:2px 10px; border-radius:10px; font-size:.78em; font-weight:600;
+  }
+  .ch-insights-summary .sum-critical { background:var(--danger-bg); color:var(--danger); }
+  .ch-insights-summary .sum-warning { background:var(--warn-bg); color:var(--warn); }
+  .ch-insights-summary .sum-info { background:rgba(37,99,235,.08); color:var(--accent); }
+
+  .ch-insights-list {
+    overflow:hidden; transition:max-height .3s ease; max-height:0;
+    margin-top:8px;
+  }
+  .ch-insights-list.open { max-height:2000px; }
+
+  .ch-insight {
+    display:flex; align-items:flex-start; gap:12px; padding:12px 18px; border-radius:8px;
+    margin-bottom:6px; border-left:4px solid transparent; font-size:.88em;
+  }
+  .ch-insight.critical { background:var(--danger-bg); border-left-color:var(--danger); }
+  .ch-insight.warning { background:var(--warn-bg); border-left-color:var(--warn); }
+  .ch-insight.info { background:rgba(37,99,235,.06); border-left-color:var(--accent); }
+  .ch-insight .ins-icon { font-size:1.2em; margin-top:1px; flex-shrink:0; }
+  .ch-insight .ins-body { flex:1; }
+  .ch-insight .ins-body strong { display:block; font-size:.9em; color:var(--title); }
+  .ch-insight .ins-body p { margin:3px 0 0; color:var(--text); }
+  .ch-insight .ins-action { font-size:.85em; color:var(--accent); font-style:italic; margin-top:4px; }
+
+  /* ── Tables ── */
+  .ch-table { width:100%; border-collapse:collapse; font-size:.82em; }
+  .ch-table th { background:var(--panel2); padding:10px 12px; text-align:left; border-bottom:2px solid var(--border); color:var(--text-muted); font-weight:600; }
+  .ch-table td { padding:8px 12px; border-bottom:1px solid var(--border); }
+  .ch-table tr:hover { background:var(--panel2); }
+
+  /* ── Footer ── */
+  .ch-footer {
+    text-align:center; padding:20px; font-size:.78em; color:var(--text-muted);
+    border-top:1px solid var(--border); margin-top:10px;
+  }
+  .ch-footer a { color:var(--accent); text-decoration:none; }
+
+  /* ── Responsive ── */
+  @media (max-width:1024px) {
+    .ch-grid { grid-template-columns:1fr; }
+    .ch-kpi-grid { grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+  }
+  @media (max-width:640px) {
+    .ch-header { padding:14px 16px; }
+    .ch-header h1 { font-size:1.1em; }
+    .ch-container { padding:12px; }
+    .ch-kpi .kpi-value { font-size:1.4em; }
+  }
+</style>
+<script>
+window.__CH_HELPS = {"Throughput": {"desc": "Quantidade de chamados resolvidos por período.", "look": "Tendência crescente indica melhoria de capacidade de entrega. Quedas bruscas podem indicar bloqueios ou feriados.", "rec": "Manter estável ou crescente. Se cair >20%, investigar causas.", "solves": "Identifica gargalos de produtividade e capacidade da equipe."}, "Lead Time": {"desc": "Tempo total desde a criação do chamado até sua conclusão.", "look": "P50 = metade resolve em até X dias. P85 = 85%. P95 = praticamente todos.", "rec": "Focar na redução do P85 — é o indicador usado para SLA.", "solves": "Identifica lentidão no fluxo e permite previsibilidade de entrega."}, "Lead Time P85": {"desc": "85% dos chamados são resolvidos em até X dias. Quanto menor, melhor.", "look": "Compare com a meta. Picos indicam tickets complexos ou bloqueios no fluxo.", "rec": "Ideal abaixo de 5 dias. Se acima, avaliar WIP limits e priorização.", "solves": "Permite prometer prazos confiáveis ao cliente (SLA)."}, "SLA 48h": {"desc": "Percentual de chamados resolvidos dentro de 48 horas úteis.", "look": "Meta mínima: 90%. Abaixo disso, o cliente percebe lentidão.", "rec": "Priorizar tickets antigos e limitar WIP para aumentar velocidade.", "solves": "Mede a satisfação do cliente com a velocidade de atendimento."}, "Fluxo Cumulativo": {"desc": "Gráfico de área empilhada mostrando evolução dos estados (CFD).", "look": "Faixas paralelas = fluxo saudável. Faixas se abrindo = gargalo.", "rec": "Se 'Em Progresso' cresce mais que 'Concluído', limitar WIP.", "solves": "Visualiza gargalos no processo de forma intuitiva."}, "Taxa de Defeitos": {"desc": "Percentual de tickets classificados como Bug sobre o total.", "look": "Tendência crescente indica problemas de qualidade no código.", "rec": "Investir em testes automatizados e code review se acima de 10%.", "solves": "Previne retrabalho e insatisfação do cliente."}, "Retrabalho": {"desc": "Tickets que foram reabertos após marcados como resolvidos.", "look": "Alto retrabalho indica entregas sem validação adequada.", "rec": "Implementar checklist de conclusão e testes de aceite.", "solves": "Reduz desperdício e melhora a confiança nas entregas."}, "Acurácia de Estimativas": {"desc": "Quanto as estimativas de prazo se aproximaram do tempo real.", "look": "Alto % de 'Dentro' = boas estimativas. 'Subestimado' = prazos furados.", "rec": "Usar histórico de lead time para estimar ao invés de feeling.", "solves": "Melhora a previsibilidade e a confiança na comunicação com stakeholders."}};
+window.__CH_DATA = {"insights":[{"id": 41, "dashboard_slug": "entrega-qualidade", "indicator_name": "Taxa de Defeitos", "insight_type": "atencao", "message": "43 bugs abertos — acumulando divida tecnica.", "suggested_action": "Alocar sprint de estabilizacao ou reservar 20% da capacidade para bugs.", "severity": "warning", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}, {"id": 39, "dashboard_slug": "entrega-qualidade", "indicator_name": "Lead Time P85", "insight_type": "atencao", "message": "Lead Time P85 em 65.1 dias — 1202% acima da meta (5d).", "suggested_action": "Revisar processos de code review e QA. Considere limitar WIP do time.", "severity": "critical", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}, {"id": 40, "dashboard_slug": "entrega-qualidade", "indicator_name": "SLA 48h", "insight_type": "atencao", "message": "SLA 48h em 74% — muito abaixo da meta (90%).", "suggested_action": "Priorizar tickets criticos e realocar time. Analisar gargalos por categoria.", "severity": "critical", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}]};
+</script>
+</head>
+<body>
+<header class="ch-header">
+  <h1><i class="bi bi-check2-square"></i> Entrega & Qualidade <span class="code">CH-20</span></h1>
+  <div class="hdr-badges">
+    <span class="hdr-badge"><i class="bi bi-people"></i> Gestão</span>
+    <span class="hdr-badge"><i class="bi bi-clock"></i> 08/05/2026 09:28</span>
+  </div>
+</header>
+<div class="ch-container">
+
+
+  <!-- Insights -->
+  <div class="ch-insights-panel" id="chInsightsPanel"></div>
+
+  <!-- KPIs -->
+  <div class="ch-kpi-grid" id="kpiGrid"></div>
+
+  <!-- Charts -->
+  <div class="ch-grid">
+    <div class="ch-card" id="cardVazao">
+      <h3><i class="bi bi-graph-up"></i> Throughput Mensal</h3>
+      <div class="ch-chart" id="chartVazao"></div>
+    </div>
+    <div class="ch-card" id="cardLeadTime">
+      <h3><i class="bi bi-speedometer2"></i> Lead Time (dias)</h3>
+      <div class="ch-chart" id="chartLeadTime"></div>
+    </div>
+    <div class="ch-card" id="cardCFD">
+      <h3><i class="bi bi-layers"></i> Fluxo Cumulativo (CFD)</h3>
+      <div class="ch-chart" id="chartCFD"></div>
+    </div>
+    <div class="ch-card" id="cardLTCat">
+      <h3><i class="bi bi-clock-history"></i> Lead Time por Categoria</h3>
+      <div class="ch-chart" id="chartLTCat"></div>
+    </div>
+    <div class="ch-card" id="cardDefeitos">
+      <h3><i class="bi bi-bug"></i> Taxa de Defeitos (%)</h3>
+      <div class="ch-chart" id="chartDefeitos"></div>
+    </div>
+    <div class="ch-card" id="cardAcuracia">
+      <h3><i class="bi bi-pie-chart"></i> Acurácia de Estimativas</h3>
+      <div class="ch-chart" id="chartAcuracia"></div>
+    </div>
+    <div class="ch-card ch-full" id="cardBugs">
+      <h3><i class="bi bi-list-check"></i> Bugs Abertos</h3>
+      <div id="bugTable"></div>
+    </div>
+  </div>
+
+</div>
+<footer class="ch-footer">
+  Entrega & Qualidade — Connect Hub · Trier Sistemas
+</footer>
+
+<script>
+const D = {"gerado_em": "08/05/2026 09:28", "metas": {"Lead Time P85": 5.0, "SLA 48h": 90.0, "Taxa de Retrabalho": 8.0, "Throughput": 50.0, "Taxa de Defeitos": 10.0, "Acuracia Estimativas": 75.0, "Test Meta Auto": 42.0}, "insights": [{"id": 41, "dashboard_slug": "entrega-qualidade", "indicator_name": "Taxa de Defeitos", "insight_type": "atencao", "message": "43 bugs abertos — acumulando divida tecnica.", "suggested_action": "Alocar sprint de estabilizacao ou reservar 20% da capacidade para bugs.", "severity": "warning", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}, {"id": 39, "dashboard_slug": "entrega-qualidade", "indicator_name": "Lead Time P85", "insight_type": "atencao", "message": "Lead Time P85 em 65.1 dias — 1202% acima da meta (5d).", "suggested_action": "Revisar processos de code review e QA. Considere limitar WIP do time.", "severity": "critical", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}, {"id": 40, "dashboard_slug": "entrega-qualidade", "indicator_name": "SLA 48h", "insight_type": "atencao", "message": "SLA 48h em 74% — muito abaixo da meta (90%).", "suggested_action": "Priorizar tickets criticos e realocar time. Analisar gargalos por categoria.", "severity": "critical", "auto_generated": 1, "active": 1, "created_at": "2026-05-08 12:24:21"}], "vazao": {"periodos": ["Out/2025", "Nov/2025", "Dez/2025", "Jan/2026", "Fev/2026", "Mar/2026", "Abr/2026", "Mai/2026"], "valores": [56, 366, 192, 316, 366, 458, 436, 162]}, "lead_time": {"periodos": ["Out/2025", "Nov/2025", "Dez/2025", "Jan/2026", "Fev/2026", "Mar/2026", "Abr/2026", "Mai/2026"], "p50": [7.14, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 6.95], "p85": [54.68, 6.79, 12.33, 2.28, 18.81, 7.38, 11.75, 65.08], "p95": [56.93, 15.21, 31.02, 35.22, 95.8, 51.67, 85.2, 142.01]}, "lead_time_cat": {"categorias": ["Atendimento", "Bug", "Customização", "Implantação", "Melhoria", "Reunião", "Treinamento"], "p50": [0.1, 4.26, 0.0, 22.79, 34.04, 0.0, 59.09], "p85": [61.8, 51.95, 0.0, 153.79, 152.63, 47.94, 65.97]}, "sla": {"dentro": 1740, "total": 2352, "pct": 74.0}, "fluxo": {"periodos": ["Ago/2025", "Out/2025", "Nov/2025", "Dez/2025", "Jan/2026", "Fev/2026", "Mar/2026", "Abr/2026", "Mai/2026"], "concluido": [25, 116, 521, 738, 1068, 1409, 1907, 2292, 2372], "em_progresso": [2, 7, 24, 32, 44, 69, 91, 114, 144], "submetido": [12, 27, 57, 70, 84, 98, 130, 167, 187], "aberto": [1, 1, 2, 2, 3, 8, 10, 24, 29]}, "taxa_defeitos": {"periodos": ["Ago/2025", "Out/2025", "Nov/2025", "Dez/2025", "Jan/2026", "Fev/2026", "Mar/2026", "Abr/2026", "Mai/2026"], "taxas": [10.0, 9.9, 2.0, 7.1, 3.9, 5.2, 7.0, 3.9, 5.9]}, "bugs": {"abertos": 43, "prioridade": {"Normal": 24, "Critical": 15, "Major": 2, "Minor": 2}, "lista": [{"ID": "BC-2742", "Resumo": "Endpoint obter-saldo-estoque-diario está retornando informação incorretamente no campo total_saida", "Estado": "Open", "Prioridade": "Normal", "Analista": "Não atribuído", "Situação": "Aberto"}, {"ID": "BC-2653", "Resumo": "Dados faltantes em despesa - Farmarcas", "Estado": "In Progress", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-2310", "Resumo": "Incluir dados do campo chave_nfe", "Estado": "Submitted", "Prioridade": "Normal", "Analista": "Arlei Corrêa Zomer", "Situação": "Aberto"}, {"ID": "BC-2674", "Resumo": "Bug de visao para mix de produto", "Estado": "Submitted", "Prioridade": "Normal", "Analista": "Não atribuído", "Situação": "Aberto"}, {"ID": "BC-2673", "Resumo": "Appgestor - Lentidao tela clientes", "Estado": "Submitted", "Prioridade": "Normal", "Analista": "Não atribuído", "Situação": "Aberto"}, {"ID": "BC-2670", "Resumo": "Bug app gestor", "Estado": "Submitted", "Prioridade": "Normal", "Analista": "Não atribuído", "Situação": "Aberto"}, {"ID": "BC-2584", "Resumo": "Dados faltantes farmácias Éden", "Estado": "Submitted", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-2652", "Resumo": "Ajustes dados Éden", "Estado": "Submitted", "Prioridade": "Normal", "Analista": "Não atribuído", "Situação": "Aberto"}, {"ID": "BC-2629", "Resumo": "Lentidão coletor - Connect HUB", "Estado": "Submitted", "Prioridade": "Major", "Analista": "Arlei Corrêa Zomer", "Situação": "Aberto"}, {"ID": "BC-2544", "Resumo": "Campos divergentes dedup incremental", "Estado": "Submitted", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-2531", "Resumo": "Erro 500 ao consultar ENDPOINT MIGRATION", "Estado": "Submitted", "Prioridade": "Normal", "Analista": "Não atribuído", "Situação": "Aberto"}, {"ID": "BC-2493", "Resumo": "Corrigir comportamento dos filtros nos painéis de Tendência e Recorrência", "Estado": "In Progress", "Prioridade": "Normal", "Analista": "Arlei Corrêa Zomer", "Situação": "Aberto"}, {"ID": "BC-2405", "Resumo": "Carga retroativa para rede em implantação", "Estado": "Submitted", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-2404", "Resumo": "Gold estoque falhando por exaustão de recursos do Athena", "Estado": "Submitted", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}, {"ID": "BC-2304", "Resumo": "Endpoint vendas V1 retornando valor custo divergente do relatório Trier", "Estado": "Submitted", "Prioridade": "Critical", "Analista": "Gabriel Rosalino", "Situação": "Aberto"}]}, "retrabalho": 0, "acuracia": {"Dentro": 494, "Superestimado": 257, "Subestimado": 183}};
+
+// ── KPIs ──
+(function() {
+  const g = document.getElementById('kpiGrid');
+  const metas = D.metas || {};
+  const kpis = [
+    {label:'Throughput (último)', value: D.vazao.valores.length ? D.vazao.valores[D.vazao.valores.length-1] : '—',
+      meta: metas['Throughput'], unit:'tickets', dir:'max'},
+    {label:'Lead Time P85', value: D.lead_time.p85.length ? D.lead_time.p85[D.lead_time.p85.length-1].toFixed(1)+'d' : '—',
+      meta: metas['Lead Time P85'], unit:'dias', dir:'min',
+      raw: D.lead_time.p85.length ? D.lead_time.p85[D.lead_time.p85.length-1] : null},
+    {label:'SLA 48h', value: D.sla.pct+'%', meta: metas['SLA 48h'], unit:'%', dir:'max', raw: D.sla.pct},
+    {label:'Bugs Abertos', value: D.bugs.abertos, meta: metas['Taxa de Defeitos'], dir:'min'},
+    {label:'Retrabalho', value: D.retrabalho+' tickets', meta: metas['Taxa de Retrabalho'], dir:'min'},
+  ];
+  kpis.forEach(k => {
+    let cls = '';
+    const raw = k.raw !== undefined ? k.raw : parseFloat(k.value);
+    if (k.meta && !isNaN(raw)) {
+      if (k.dir === 'min') cls = raw <= k.meta ? 'ok' : raw <= k.meta*1.2 ? 'warn' : 'danger';
+      else cls = raw >= k.meta ? 'ok' : raw >= k.meta*0.8 ? 'warn' : 'danger';
+    }
+    const badge = metaBadgeHTML(raw, k.meta, k.dir, k.unit);
+    g.innerHTML += '<div class="ch-kpi '+cls+'"><div class="kpi-label">'+k.label+'</div><div class="kpi-value">'+k.value+'</div>'+badge+'</div>';
+  });
+})();
+
+// ── Charts ──
+
+// Throughput
+if (D.vazao.periodos.length) {
+  const ml = metaLine(D.vazao.periodos, D.metas['Throughput'], 'Meta');
+  const traces = [{type:'bar',x:D.vazao.periodos,y:D.vazao.valores,marker:{color:'#3b82f6'},name:'Resolvidos'}];
+  if (ml) traces.push(ml);
+  Plotly.newPlot('chartVazao', traces, {...baseLayout,barmode:'group'}, plotCfg);
+}
+
+// Lead Time
+if (D.lead_time.periodos.length) {
+  const traces = [
+    {type:'scatter',x:D.lead_time.periodos,y:D.lead_time.p50,name:'P50',line:{color:'#16a34a',width:2}},
+    {type:'scatter',x:D.lead_time.periodos,y:D.lead_time.p85,name:'P85',line:{color:'#d97706',width:2}},
+    {type:'scatter',x:D.lead_time.periodos,y:D.lead_time.p95,name:'P95',line:{color:'#dc2626',width:1,dash:'dot'}},
+  ];
+  const ml = metaLine(D.lead_time.periodos, D.metas['Lead Time P85'], 'Meta P85');
+  if (ml) traces.push(ml);
+  Plotly.newPlot('chartLeadTime', traces, baseLayout, plotCfg);
+}
+
+// CFD
+if (D.fluxo.periodos.length) {
+  Plotly.newPlot('chartCFD',[
+    {type:'scatter',x:D.fluxo.periodos,y:D.fluxo.concluido,name:'Concluído',stackgroup:'one',fillcolor:'rgba(22,163,74,.3)',line:{color:'#16a34a'}},
+    {type:'scatter',x:D.fluxo.periodos,y:D.fluxo.em_progresso,name:'Em Progresso',stackgroup:'one',fillcolor:'rgba(59,130,246,.3)',line:{color:'#3b82f6'}},
+    {type:'scatter',x:D.fluxo.periodos,y:D.fluxo.submetido,name:'Submetido',stackgroup:'one',fillcolor:'rgba(217,119,6,.3)',line:{color:'#d97706'}},
+    {type:'scatter',x:D.fluxo.periodos,y:D.fluxo.aberto,name:'Aberto',stackgroup:'one',fillcolor:'rgba(220,38,38,.2)',line:{color:'#dc2626'}},
+  ], baseLayout, plotCfg);
+}
+
+// Lead Time por Categoria
+if (D.lead_time_cat.categorias.length) {
+  Plotly.newPlot('chartLTCat',[
+    {type:'bar',x:D.lead_time_cat.categorias,y:D.lead_time_cat.p50,name:'P50',marker:{color:'#16a34a'}},
+    {type:'bar',x:D.lead_time_cat.categorias,y:D.lead_time_cat.p85,name:'P85',marker:{color:'#d97706'}},
+  ],{...baseLayout,barmode:'group'}, plotCfg);
+}
+
+// Taxa de Defeitos
+if (D.taxa_defeitos.periodos.length) {
+  const ml = metaLine(D.taxa_defeitos.periodos, D.metas['Taxa de Defeitos'], 'Meta');
+  const traces = [{type:'scatter',x:D.taxa_defeitos.periodos,y:D.taxa_defeitos.taxas,name:'Taxa %',
+    fill:'tozeroy',fillcolor:'rgba(220,38,38,.1)',line:{color:'#dc2626',width:2}}];
+  if (ml) traces.push(ml);
+  Plotly.newPlot('chartDefeitos', traces, baseLayout, plotCfg);
+}
+
+// Acurácia
+if (Object.keys(D.acuracia).length) {
+  const labels = Object.keys(D.acuracia);
+  const values = Object.values(D.acuracia);
+  const colors = labels.map(l => l==='Dentro'?'#16a34a':l==='Subestimado'?'#d97706':'#3b82f6');
+  Plotly.newPlot('chartAcuracia',[{type:'pie',labels,values,marker:{colors},hole:.4,
+    textinfo:'label+percent'}],{...baseLayout,margin:{t:10,b:10,l:10,r:10}}, plotCfg);
+}
+
+// Bug Table
+(function() {
+  const el = document.getElementById('bugTable');
+  if (!D.bugs.lista.length) { el.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px">Nenhum bug aberto</p>'; return; }
+  let html = '<table class="ch-table"><thead><tr><th>ID</th><th>Resumo</th><th>Prioridade</th><th>Analista</th><th>Estado</th></tr></thead><tbody>';
+  D.bugs.lista.forEach(b => {
+    const pcolor = b.Prioridade==='Critical'?'var(--danger)':b.Prioridade==='Major'?'var(--warn)':'var(--text)';
+    html += '<tr><td><code>'+b.ID+'</code></td><td>'+((b.Resumo||'').substring(0,60))+'</td>'+
+      '<td style="color:'+pcolor+';font-weight:600">'+b.Prioridade+'</td>'+
+      '<td>'+(b.Analista||'—')+'</td><td>'+(b.Estado||'—')+'</td></tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+})();
+</script>
+
+<script>
+
+/* ── Connect Hub — JS Utilities ── */
+const baseLayout = {paper_bgcolor:'transparent', plot_bgcolor:'transparent',
+  margin:{t:10, b:50, l:60, r:20},
+  font:{family:'Segoe UI, system-ui, sans-serif', size:12, color:'#374151'},
+  xaxis:{gridcolor:'#e5e7eb', color:'#374151'},
+  yaxis:{gridcolor:'#e5e7eb', color:'#374151'}};
+const plotCfg = {responsive:true, displayModeBar:false};
+
+const HELPS = window.__CH_HELPS || {};
+const INSIGHTS = window.__CH_DATA ? (window.__CH_DATA.insights || []) : [];
+
+/* Meta status */
+function metaStatus(value, target, direction) {
+  if (target == null || value == null || isNaN(value)) return null;
+  const v = parseFloat(value);
+  const t = parseFloat(target);
+  if (direction === 'min') {
+    if (v <= t) return {label:'Na meta', cls:'badge-ok', icon:'✅'};
+    if (v <= t * 1.2) return {label:'Próximo', cls:'badge-warn', icon:'⚠️'};
+    return {label:'Acima', cls:'badge-danger', icon:'🔴'};
+  } else {
+    if (v >= t) return {label:'Na meta', cls:'badge-ok', icon:'✅'};
+    if (v >= t * 0.8) return {label:'Próximo', cls:'badge-warn', icon:'⚠️'};
+    return {label:'Abaixo', cls:'badge-danger', icon:'🔴'};
+  }
+}
+
+/* Render meta badge HTML */
+function metaBadgeHTML(value, target, direction, unit) {
+  const s = metaStatus(value, target, direction);
+  if (!s) return '';
+  const u = unit ? ' ' + unit : '';
+  return '<div class="kpi-meta"><span class="meta-badge ' + s.cls + '">' + s.icon + ' ' + s.label +
+    '</span> Meta: ' + target + u + '</div>';
+}
+
+/* Modal system */
+function showModal(title, bodyHTML, icon) {
+  let overlay = document.getElementById('chModalOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'chModalOverlay';
+    overlay.className = 'ch-modal-overlay';
+    overlay.innerHTML = '<div class="ch-modal"><div class="ch-modal-head"><h4></h4>' +
+      '<button class="ch-modal-close" onclick="closeModal()">✕</button></div>' +
+      '<div class="ch-modal-body"></div></div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+  }
+  const iconHTML = icon ? '<i class="bi ' + icon + '"></i> ' : '';
+  overlay.querySelector('h4').innerHTML = iconHTML + title;
+  overlay.querySelector('.ch-modal-body').innerHTML = bodyHTML;
+  overlay.classList.add('active');
+  document.addEventListener('keydown', _escModal);
+}
+function closeModal() {
+  const o = document.getElementById('chModalOverlay');
+  if (o) o.classList.remove('active');
+  document.removeEventListener('keydown', _escModal);
+}
+function _escModal(e) { if (e.key === 'Escape') closeModal(); }
+
+/* Help button */
+function showHelp(indicatorName) {
+  const h = HELPS[indicatorName];
+  if (!h) { showModal(indicatorName, '<p>Sem informação disponível.</p>', 'bi-question-circle'); return; }
+  let html = '';
+  if (h.desc) html += '<div class="help-section"><h5><i class="bi bi-info-circle"></i> O que é</h5><p>' + h.desc + '</p></div>';
+  if (h.look) html += '<div class="help-section"><h5><i class="bi bi-eye"></i> O que observar</h5><p>' + h.look + '</p></div>';
+  if (h.rec) html += '<div class="help-section"><h5><i class="bi bi-lightbulb"></i> Recomendação</h5><p>' + h.rec + '</p></div>';
+  if (h.solves) html += '<div class="help-section"><h5><i class="bi bi-check2-circle"></i> Que problema resolve</h5><p>' + h.solves + '</p></div>';
+  showModal(indicatorName, html, 'bi-question-circle');
+}
+
+/* Chart insight button */
+function showChartInsights(indicatorNames) {
+  const names = Array.isArray(indicatorNames) ? indicatorNames : [indicatorNames];
+  const matching = INSIGHTS.filter(i => names.some(n =>
+    i.indicator_name && i.indicator_name.toLowerCase().includes(n.toLowerCase())
+  ));
+  if (!matching.length) {
+    showModal('Insights', '<p style="color:var(--text-muted);text-align:center;padding:20px">Nenhum insight para este gráfico.</p>', 'bi-lightbulb');
+    return;
+  }
+  const icons = {atencao:'⚠️', positivo:'✅', acao:'💡'};
+  let html = '';
+  matching.forEach(i => {
+    const action = i.suggested_action ? '<div class="ins-action">→ ' + i.suggested_action + '</div>' : '';
+    html += '<div class="ch-insight ' + i.severity + '"><div class="ins-icon">' +
+      (icons[i.insight_type] || 'ℹ️') + '</div><div class="ins-body"><strong>' + i.indicator_name +
+      '</strong><p>' + i.message + '</p>' + action + '</div></div>';
+  });
+  showModal('Insights do Gráfico', html, 'bi-lightbulb');
+}
+
+/* Insights panel (collapsible) */
+function renderInsightsPanel(containerId, insights) {
+  const el = document.getElementById(containerId);
+  if (!el || !insights || !insights.length) return;
+  const crit = insights.filter(i => i.severity === 'critical').length;
+  const warn = insights.filter(i => i.severity === 'warning').length;
+  const info = insights.filter(i => i.severity === 'info').length;
+  const startOpen = insights.length <= 3;
+
+  let summaryBadges = '';
+  if (crit) summaryBadges += '<span class="sum-badge sum-critical">' + crit + ' crítico' + (crit>1?'s':'') + '</span>';
+  if (warn) summaryBadges += '<span class="sum-badge sum-warning">' + warn + ' atenção</span>';
+  if (info) summaryBadges += '<span class="sum-badge sum-info">' + info + ' info</span>';
+
+  const icons = {atencao:'⚠️', positivo:'✅', acao:'💡'};
+  let listHTML = '';
+  // Sort: critical first, then warning, then info
+  const sorted = [...insights].sort((a,b) => {
+    const order = {critical:0, warning:1, info:2};
+    return (order[a.severity]||2) - (order[b.severity]||2);
+  });
+  sorted.forEach(i => {
+    const action = i.suggested_action ? '<div class="ins-action">→ ' + i.suggested_action + '</div>' : '';
+    listHTML += '<div class="ch-insight ' + i.severity + '"><div class="ins-icon">' +
+      (icons[i.insight_type] || 'ℹ️') + '</div><div class="ins-body"><strong>' + i.indicator_name +
+      '</strong><p>' + i.message + '</p>' + action + '</div></div>';
+  });
+
+  el.innerHTML =
+    '<button class="ch-insights-toggle" onclick="toggleInsights(this)">' +
+    '<i class="bi bi-lightbulb" style="color:var(--warn)"></i>' +
+    '<strong>' + insights.length + ' insight' + (insights.length>1?'s':'') + '</strong>' +
+    '<div class="ch-insights-summary">' + summaryBadges + '</div>' +
+    '<span class="toggle-icon' + (startOpen?' open':'') + '">▼</span>' +
+    '</button>' +
+    '<div class="ch-insights-list' + (startOpen?' open':'') + '">' + listHTML + '</div>';
+}
+function toggleInsights(btn) {
+  const list = btn.nextElementSibling;
+  const icon = btn.querySelector('.toggle-icon');
+  list.classList.toggle('open');
+  icon.classList.toggle('open');
+}
+
+/* Attach chart insight button to a card */
+function attachChartInsight(cardEl, indicatorNames) {
+  const names = Array.isArray(indicatorNames) ? indicatorNames : [indicatorNames];
+  const matching = INSIGHTS.filter(i => names.some(n =>
+    i.indicator_name && i.indicator_name.toLowerCase().includes(n.toLowerCase())
+  ));
+  let actions = cardEl.querySelector('.ch-card-actions');
+  if (!actions) {
+    actions = document.createElement('div');
+    actions.className = 'ch-card-actions';
+    cardEl.appendChild(actions);
+  }
+  const btn = document.createElement('button');
+  btn.className = 'ch-insight-btn';
+  if (matching.some(i => i.severity === 'critical')) btn.classList.add('has-critical');
+  btn.innerHTML = '💡' + (matching.length ? '<span class="badge-count">' + matching.length + '</span>' : '');
+  btn.disabled = !matching.length;
+  btn.title = matching.length ? matching.length + ' insight(s)' : 'Sem insights';
+  btn.onclick = function() { showChartInsights(names); };
+  actions.insertBefore(btn, actions.firstChild);
+}
+
+/* Attach help button to a card title */
+function attachHelp(cardEl, indicatorName) {
+  const h3 = cardEl.querySelector('h3');
+  if (!h3 || !HELPS[indicatorName]) return;
+  const btn = document.createElement('button');
+  btn.className = 'ch-help-btn';
+  btn.innerHTML = '?';
+  btn.title = 'O que é ' + indicatorName;
+  btn.onclick = function(e) { e.stopPropagation(); showHelp(indicatorName); };
+  h3.appendChild(btn);
+}
+
+/* Create meta line for Plotly chart */
+function metaLine(periods, metaValue, label) {
+  if (!metaValue || !periods.length) return null;
+  return {type:'scatter', x:periods, y:Array(periods.length).fill(metaValue),
+    mode:'lines', name:label || 'Meta', line:{color:'#dc2626', dash:'dash', width:2},
+    hovertemplate: 'Meta: %{y}<extra></extra>'};
+}
+
+/* Format number Brazilian style */
+function fmtBR(n, decimals) {
+  if (n == null || isNaN(n)) return '—';
+  return Number(n).toLocaleString('pt-BR', {minimumFractionDigits: decimals||0, maximumFractionDigits: decimals||0});
+}
+
+
+/* Auto-attach help and insight buttons */
+(function() {
+  const chartMap = {"cardVazao": ["Throughput"], "cardLeadTime": ["Lead Time", "Lead Time P85"], "cardCFD": ["Fluxo Cumulativo"], "cardLTCat": ["Lead Time"], "cardDefeitos": ["Taxa de Defeitos"], "cardAcuracia": ["Acurácia de Estimativas"], "cardBugs": ["Retrabalho"]};
+  Object.entries(chartMap).forEach(([cardId, indicators]) => {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+    if (indicators.length) {
+      attachHelp(card, indicators[0]);
+      attachChartInsight(card, indicators);
+    }
+  });
+  renderInsightsPanel('chInsightsPanel', INSIGHTS);
+})();
+</script>
+</body>
+</html>
